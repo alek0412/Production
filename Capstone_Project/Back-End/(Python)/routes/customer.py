@@ -82,7 +82,27 @@ def add_customer():
     )
     if type(add_waiver_id)==int:
         return make_response("Server is unable to create waiver id",503)
-    return make_response("Customer created successfully!",201)
+    # Same Flask session as customer-login so POST /api/reservation sees is_customer (reservation.py).
+    cust_rows = sql_functions.execute_read(
+        sql_connection,
+        "select * from customer where customer_id = %s",
+        (customer_id[0]["customer_id"],),
+    )
+    if type(cust_rows) == int or not cust_rows:
+        return make_response("Server is unable to fetch customer for session", 503)
+    row = cust_rows[0]
+    session.clear()
+    for attribute in row:
+        if attribute not in ["password", "salt"]:
+            session[attribute] = row[attribute]
+    session["password"] = password
+    session["is_employee"] = False
+    session["is_manager"] = False
+    session["is_customer"] = True
+    session["waiver_id"] = new_waiver_id
+    return make_response("Customer created successfully!", 201)
+
+
 @customer_blueprint.route("/api/customer-login",methods=["post"])
 def customer_login():
     request_json=request.get_json()

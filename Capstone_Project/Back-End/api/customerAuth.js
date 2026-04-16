@@ -268,6 +268,7 @@ module.exports = async function handleCustomerAuth(req, res, ctx) {
       try {
         upstream = await proxyToFlask(base, 'POST', '/api/waiver-register', {
           body: JSON.stringify(data),
+          cookie: cookieHeader,
           contentType: 'application/json',
         });
       } catch (err) {
