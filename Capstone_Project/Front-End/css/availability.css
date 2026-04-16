@@ -349,6 +349,11 @@
   min-width: 1320px;
 }
 
+/* Keep time labels and court rows on the same Y origin (admin default adds top padding). */
+.availability-page .public-res-embed .reservations-calendar {
+  padding: 0;
+}
+
 /* Modal — request reservation (client logged-in) */
 .pub-res-modal-overlay {
   position: fixed;
@@ -549,6 +554,19 @@
     -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
     touch-action: pan-x pan-y;
+  }
+
+  /* Keep court header boxes visible while scrolling time slots on phones. */
+  .availability-page .public-res-embed .res-schedule-corner {
+    position: sticky;
+    top: 0;
+    z-index: 16;
+  }
+
+  .availability-page .public-res-embed .res-schedule-headers {
+    position: sticky;
+    top: 0;
+    z-index: 15;
   }
 
   .availability-page .public-res-embed .reservations-schedule-wrap {
