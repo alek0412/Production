@@ -13,6 +13,8 @@
 
   var WAIVER_MSG =
     'You must sign the waiver to make an account to reserve!';
+  var RESERVATION_THANK_YOU_MSG =
+    'Thank you for reserving. If you need to cancel, call 346-229-4921.';
   var scheduleDate = new Date();
   scheduleDate.setHours(12, 0, 0, 0);
 
@@ -138,6 +140,12 @@
     var minutes = hhmm24ToMinutes(s);
     var base = 10 * 60;
     return Math.max(0, Math.min(28, Math.ceil((minutes - base) / 30)));
+  }
+
+  function slotIndexToHhmm(slotIdx) {
+    var idx = Number.isFinite(slotIdx) ? Math.max(0, Math.min(27, slotIdx)) : 0;
+    var mins = 10 * 60 + idx * 30;
+    return pad2(Math.floor(mins / 60)) + ':' + pad2(mins % 60);
   }
 
   function decorateBlockNoActions(block) {
@@ -391,13 +399,23 @@
   }
 
   var pendingCourtName = '';
+  var pendingStartHhmm = '';
 
-  function openBookingModal(courtName) {
+  function openBookingModal(courtName, startHhmm) {
     pendingCourtName = String(courtName || '').trim();
+    pendingStartHhmm = String(startHhmm || '').trim();
     var overlay = ensureModal();
     var courtLine = document.getElementById('pub-res-modal-court-line');
     var dateLine = document.getElementById('pub-res-modal-date-line');
     var msg = document.getElementById('pub-res-modal-msg');
+    var startSel = document.getElementById('pub-res-start');
+    var endSel = document.getElementById('pub-res-end');
+    if (startSel && pendingStartHhmm && startSel.querySelector('option[value="' + pendingStartHhmm + '"]')) {
+      startSel.value = pendingStartHhmm;
+    }
+    if (startSel && endSel) {
+      syncEndTimesAfterStart(startSel, endSel);
+    }
     if (courtLine) courtLine.textContent = pendingCourtName || 'Court';
     if (dateLine) dateLine.textContent = 'Date: ' + formatScheduleDateIso(scheduleDate);
     if (msg) {
@@ -444,6 +462,7 @@
             msg.textContent = (out.text || '').trim() || 'Reservation submitted.';
             msg.className = 'pub-res-modal-msg pub-res-modal-msg--ok';
             refreshScheduleFromApi();
+            window.alert(RESERVATION_THANK_YOU_MSG);
           } else {
             msg.textContent = (out.text || '').trim() || 'Could not create reservation.';
             msg.className = 'pub-res-modal-msg pub-res-modal-msg--err';
@@ -473,6 +492,21 @@
     window.alert('Please log in with your customer account to reserve a court.');
   }
 
+  function pickStartTimeFromClick(col, clickTarget, clientY) {
+    if (!col) return '';
+    var body = col.querySelector('.cal-col-body');
+    if (!body) return '';
+    // Existing reservation blocks should not drive new start-time selection.
+    if (clickTarget && clickTarget.closest && clickTarget.closest('.cal-block--db')) return '';
+    var rect = body.getBoundingClientRect();
+    if (!rect || rect.height <= 0) return '';
+    var y = clientY - rect.top;
+    if (!Number.isFinite(y)) return '';
+    var ratio = Math.max(0, Math.min(0.9999, y / rect.height));
+    var slot = Math.floor(ratio * 28);
+    return slotIndexToHhmm(slot);
+  }
+
   function handleScheduleClick(e, canBook) {
     var block = e.target.closest && e.target.closest('.cal-block');
     if (block && block.classList.contains('cal-block--db')) {
@@ -498,7 +532,11 @@
     }
     if (!courtName) return;
     e.preventDefault();
-    openBookingModal(courtName);
+    var chosenStart = '';
+    if (!addBtn) {
+      chosenStart = pickStartTimeFromClick(col || (block && block.closest && block.closest('.cal-col')), e.target, e.clientY);
+    }
+    openBookingModal(courtName, chosenStart);
     attachSubmitOnce();
   }
 
