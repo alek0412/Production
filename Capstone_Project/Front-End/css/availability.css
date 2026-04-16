@@ -560,13 +560,22 @@
   .availability-page .public-res-embed .res-schedule-corner {
     position: sticky;
     top: 0;
-    z-index: 16;
+    left: 0;
+    z-index: 18;
   }
 
   .availability-page .public-res-embed .res-schedule-headers {
     position: sticky;
     top: 0;
     z-index: 15;
+  }
+
+  /* Keep time labels pinned while horizontally scrolling courts. */
+  .availability-page .public-res-embed .reservations-time-scale {
+    position: sticky;
+    left: 0;
+    z-index: 14;
+    box-shadow: 2px 0 0 rgba(0, 0, 0, 0.18);
   }
 
   .availability-page .public-res-embed .reservations-schedule-wrap {
