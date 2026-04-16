@@ -25,16 +25,31 @@
     return true;
   }
 
-  function setInputFilesFromFile(input, file) {
-    if (!input || !file) return false;
+  function setInputFiles(input, fileList) {
+    if (!input || !fileList || !fileList.length) return false;
+    // Some browsers allow direct assignment from DataTransfer.files.
     try {
-      var dt = new DataTransfer();
-      dt.items.add(file);
-      input.files = dt.files;
-      return input.files && input.files.length > 0;
-    } catch (err) {
-      return false;
-    }
+      input.files = fileList;
+      if (input.files && input.files.length > 0) return true;
+    } catch (err) {}
+    // Fallback for browsers that support DataTransfer constructor.
+    try {
+      if (typeof DataTransfer === 'function') {
+        var dt = new DataTransfer();
+        dt.items.add(fileList[0]);
+        input.files = dt.files;
+        return input.files && input.files.length > 0;
+      }
+    } catch (err2) {}
+    return false;
+  }
+
+  function showDropHint(slot, text) {
+    if (!slot) return;
+    var status = slot.querySelector('.admin-marketing-status');
+    if (!status) return;
+    status.textContent = text || '';
+    status.style.color = '#92400e';
   }
 
   function dispatchChange(input) {
@@ -98,8 +113,11 @@
       slot.classList.remove('admin-marketing-slot--dragover');
       var files = e.dataTransfer && e.dataTransfer.files;
       if (!files || !files.length) return;
-      var file = files[0];
-      if (!setInputFilesFromFile(input, file)) return;
+      if (!setInputFiles(input, files)) {
+        showDropHint(slot, 'Drag/drop not supported here. Click the file picker, then Save.');
+        return;
+      }
+      showDropHint(slot, '');
       dispatchChange(input);
     },
     false
