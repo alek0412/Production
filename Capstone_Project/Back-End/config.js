@@ -28,7 +28,7 @@ module.exports = {
   db: {
     host: process.env.DB_HOST || 'reservation-capstone-db.czltypivanye.us-east-1.rds.amazonaws.com',
     port: parseInt(process.env.DB_PORT || '3306', 10),
-    database: process.env.DB_NAME || 'reservation_db',
+    database: process.env.DB_NAME || 'reservation_db_test',
     user: process.env.DB_USER,
     password: process.env.DB_PASSWORD,
   },
