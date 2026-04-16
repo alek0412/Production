@@ -25,6 +25,18 @@
     return msg || 'Could not complete.';
   }
 
+  function parseResponseBody(r, text) {
+    var j = {};
+    if (text && text.length) {
+      try {
+        j = JSON.parse(text);
+      } catch (e) {
+        j = { message: text.slice(0, 200), _parseError: true };
+      }
+    }
+    return { ok: r.ok, body: j };
+  }
+
   function fileToDataUrl(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
@@ -163,8 +175,8 @@
             });
           })
           .then(function (r) {
-            return r.json().then(function (body) {
-              return { ok: r.ok, body: body };
+            return r.text().then(function (text) {
+              return parseResponseBody(r, text);
             });
           })
           .then(function (out) {
@@ -194,8 +206,8 @@
           body: JSON.stringify({ slot: slot, op: 'clear' }),
         })
           .then(function (r) {
-            return r.json().then(function (body) {
-              return { ok: r.ok, body: body };
+            return r.text().then(function (text) {
+              return parseResponseBody(r, text);
             });
           })
           .then(function (out) {
@@ -240,8 +252,8 @@
         body: JSON.stringify({ op: 'setCount', count: next }),
       })
         .then(function (r) {
-          return r.json().then(function (body) {
-            return { ok: r.ok, body: body };
+          return r.text().then(function (text) {
+            return parseResponseBody(r, text);
           });
         })
         .then(function (out) {

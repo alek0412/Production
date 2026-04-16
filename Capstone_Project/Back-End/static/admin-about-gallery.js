@@ -25,6 +25,18 @@
     return msg || 'Could not complete.';
   }
 
+  function parseResponseBody(r, text) {
+    var j = {};
+    if (text && text.length) {
+      try {
+        j = JSON.parse(text);
+      } catch (e) {
+        j = { message: text.slice(0, 200), _parseError: true };
+      }
+    }
+    return { ok: r.ok, body: j };
+  }
+
   function fileToDataUrl(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
@@ -118,9 +130,15 @@
   function loadState() {
     fetch('/api/about-gallery-asset', { credentials: 'include' })
       .then(function (r) {
-        return r.json();
+        return r.text().then(function (text) {
+          return parseResponseBody(r, text);
+        });
       })
-      .then(function (data) {
+      .then(function (out) {
+        var data = out && out.body ? out.body : {};
+        if (!(out && out.ok)) {
+          return;
+        }
         if (data && typeof data.minSlots === 'number') MIN = data.minSlots;
         if (data && typeof data.maxSlots === 'number') MAX = data.maxSlots;
         var images = (data && data.images) || [];
@@ -177,8 +195,8 @@
             });
           })
           .then(function (r) {
-            return r.json().then(function (body) {
-              return { ok: r.ok, body: body };
+            return r.text().then(function (text) {
+              return parseResponseBody(r, text);
             });
           })
           .then(function (out) {
@@ -208,8 +226,8 @@
           body: JSON.stringify({ slot: slot, op: 'clear' }),
         })
           .then(function (r) {
-            return r.json().then(function (body) {
-              return { ok: r.ok, body: body };
+            return r.text().then(function (text) {
+              return parseResponseBody(r, text);
             });
           })
           .then(function (out) {
@@ -254,8 +272,8 @@
         body: JSON.stringify({ op: 'setCount', count: next }),
       })
         .then(function (r) {
-          return r.json().then(function (body) {
-            return { ok: r.ok, body: body };
+          return r.text().then(function (text) {
+            return parseResponseBody(r, text);
           });
         })
         .then(function (out) {
@@ -292,8 +310,8 @@
         body: JSON.stringify({ op: 'clearAll' }),
       })
         .then(function (r) {
-          return r.json().then(function (body) {
-            return { ok: r.ok, body: body };
+          return r.text().then(function (text) {
+            return parseResponseBody(r, text);
           });
         })
         .then(function (out) {
