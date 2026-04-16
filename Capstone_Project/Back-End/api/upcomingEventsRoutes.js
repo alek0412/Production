@@ -27,8 +27,7 @@ module.exports = async function handleUpcomingEventsRoutes(req, res, ctx) {
         res.end(
           JSON.stringify({
             success: false,
-            message:
-              'Request body too large (over ~1 GB image after encoding). Use a smaller file or compress the image.',
+            message: 'Request body too large (over ~50 MB image after encoding). Use a smaller file.',
           })
         );
         return true;

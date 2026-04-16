@@ -71,7 +71,7 @@
         '">Image file</label>' +
         '<input type="file" id="marketing-file-' +
         i +
-        '" class="admin-marketing-file" accept="image/jpeg,image/png,image/gif,image/webp">' +
+        '" class="admin-marketing-file" accept="image/*,.jpg,.jpeg,.png,.gif,.webp,.svg,.bmp,.tif,.tiff,.ico,.avif,.heic">' +
         '<div class="admin-marketing-actions">' +
         '<button type="button" class="btn btn-primary" id="marketing-save-' +
         i +

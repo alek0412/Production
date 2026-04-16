@@ -50,6 +50,7 @@
   }
 
   function loadPdf(url) {
+    container.innerHTML = '';
     if (typeof pdfjsLib === 'undefined') {
       container.innerHTML =
         '<p style="color: var(--text-muted);">PDF viewer unavailable. <a href="' +
@@ -94,11 +95,25 @@
     else loadPdf(url);
   }
 
-  fetch('/api/popular-times-pdf', { credentials: 'same-origin' })
-    .then(function (r) {
-      return r.json();
-    })
-    .then(function (d) {
+  var lastAssetKey = '';
+
+  function payloadKey(d) {
+    return JSON.stringify({
+      url: d && d.url ? d.url : '',
+      kind: d && d.kind ? d.kind : '',
+      visible: !!(d && d.visible !== false),
+    });
+  }
+
+  function refreshPopularTimes() {
+    return fetch('/api/popular-times-pdf', { credentials: 'same-origin' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (d) {
+        var key = payloadKey(d);
+        if (key === lastAssetKey) return;
+        lastAssetKey = key;
       if (!d) {
         container.innerHTML = '';
         setBlockShown(false);
@@ -113,9 +128,20 @@
       var url = d && d.url ? d.url : fallbackUrl;
       var kind = d && d.kind === 'image' ? 'image' : 'pdf';
       loadAsset(url, kind);
-    })
-    .catch(function () {
-      setBlockShown(true);
-      loadAsset(fallbackUrl, 'pdf');
-    });
+      })
+      .catch(function () {
+        if (!lastAssetKey) {
+          lastAssetKey = '__fallback__';
+          setBlockShown(true);
+          loadAsset(fallbackUrl, 'pdf');
+        }
+      });
+  }
+
+  refreshPopularTimes();
+
+  setInterval(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    refreshPopularTimes();
+  }, 15000);
 })();

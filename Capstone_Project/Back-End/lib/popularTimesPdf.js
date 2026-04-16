@@ -7,6 +7,7 @@
  */
 const fs = require('fs');
 const path = require('path');
+const { parseDataUrlToBuffer, detectImageAssetFormat } = require('./detectImageAssetFormat');
 
 const FRONT_END = path.join(__dirname, '..', '..', 'Front-End');
 const UPLOAD_DIR = path.join(FRONT_END, 'uploads', 'popular-times');
@@ -41,7 +42,7 @@ const MIME_TO_EXT = {
   'image/svg+xml': '.svg',
 };
 
-const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
+const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
 
 function ensureDirs() {
   fs.mkdirSync(UPLOAD_DIR, { recursive: true });
@@ -96,8 +97,12 @@ function getPublicPayload() {
     };
   }
   const name = path.basename(p);
+  let mtimeMs = 0;
+  try {
+    mtimeMs = fs.statSync(p).mtimeMs;
+  } catch (e) {}
   return {
-    url: '/uploads/popular-times/' + name,
+    url: '/uploads/popular-times/' + name + (mtimeMs ? '?v=' + mtimeMs : ''),
     hasCustom: true,
     kind: getKindForPath(p),
     visible: true,
@@ -201,22 +206,24 @@ function parseDataUrl(dataUrl) {
  */
 function setFromDataUrl(dataUrl) {
   ensureDirs();
-  const parsed = parseDataUrl(dataUrl);
+  const parsed = parseDataUrlToBuffer(dataUrl);
   if (!parsed) {
     return {
       ok: false,
-      error: 'Please upload a PDF or image (PNG, JPEG, GIF, WebP, or SVG).',
+      error: 'Could not read the uploaded file. Try again or use a different file.',
     };
   }
-  const ext = MIME_TO_EXT[parsed.mime];
-  if (!ext) {
-    return { ok: false, error: 'Unsupported file type.' };
+  const fmt = detectImageAssetFormat(parsed.buf, MAX_UPLOAD_BYTES);
+  if (!fmt) {
+    return {
+      ok: false,
+      error:
+        'Unsupported file type. Use PDF, PNG, JPG, GIF, WebP, SVG, BMP, TIFF, ICO, AVIF, HEIC, or another common image format.',
+    };
   }
-  const v = validateBuffer(parsed.mime, parsed.buf);
-  if (!v.ok) return v;
 
   removeCustomFiles();
-  const outPath = path.join(UPLOAD_DIR, BASE_NAME + ext);
+  const outPath = path.join(UPLOAD_DIR, BASE_NAME + fmt.ext);
   try {
     fs.writeFileSync(outPath, parsed.buf);
   } catch (e) {

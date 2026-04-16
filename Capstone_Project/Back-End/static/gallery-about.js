@@ -360,11 +360,25 @@
       '<p class="about-gallery-empty" role="status">Gallery photos are added here by Houston Badminton Center. Check back soon.</p>';
   }
 
-  fetch('/api/about-gallery-asset', { credentials: 'same-origin' })
-    .then(function (r) {
-      return r.json();
-    })
-    .then(function (d) {
+  var lastGalleryKey = '';
+
+  function payloadKey(d) {
+    try {
+      return JSON.stringify((d && d.images) || []);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function refreshGallery() {
+    return fetch('/api/about-gallery-asset', { credentials: 'same-origin' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (d) {
+        var key = payloadKey(d);
+        if (key === lastGalleryKey) return;
+        lastGalleryKey = key;
       var custom = [];
       if (d && d.images && d.images.length) {
         for (var i = 0; i < d.images.length; i++) {
@@ -385,8 +399,19 @@
         return;
       }
       showGalleryEmptyState();
-    })
-    .catch(function () {
-      showGalleryEmptyState();
-    });
+      })
+      .catch(function () {
+        if (!lastGalleryKey) {
+          lastGalleryKey = '__fallback__';
+          showGalleryEmptyState();
+        }
+      });
+  }
+
+  refreshGallery();
+
+  setInterval(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    refreshGallery();
+  }, 15000);
 })();

@@ -157,11 +157,25 @@
     bindLightboxToThumb(el);
   }
 
-  fetch('/api/membership-pricing', { credentials: 'same-origin' })
-    .then(function (r) {
-      return r.json();
-    })
-    .then(function (data) {
+  var lastPricingKey = '';
+
+  function payloadKey(data) {
+    return JSON.stringify({
+      url: data && data.url ? data.url : '',
+      kind: data && data.kind ? data.kind : '',
+      visible: !!(data && data.visible !== false),
+    });
+  }
+
+  function refreshMembershipPricing() {
+    return fetch('/api/membership-pricing', { credentials: 'same-origin' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var key = payloadKey(data);
+        if (key === lastPricingKey) return;
+        lastPricingKey = key;
       if (!data) {
         host.innerHTML = '';
         setFigureShown(false);
@@ -182,9 +196,20 @@
       } else {
         mountThumb('image', data.url);
       }
-    })
-    .catch(function () {
-      host.innerHTML = '';
-      setFigureShown(false);
-    });
+      })
+      .catch(function () {
+        if (!lastPricingKey) {
+          lastPricingKey = '__fallback__';
+          host.innerHTML = '';
+          setFigureShown(false);
+        }
+      });
+  }
+
+  refreshMembershipPricing();
+
+  setInterval(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    refreshMembershipPricing();
+  }, 15000);
 })();

@@ -329,12 +329,40 @@
     buildCarousel(images);
   }
 
-  fetch('/api/upcoming-events', { credentials: 'same-origin' })
-    .then(function (r) {
-      return r.json();
-    })
-    .then(render)
-    .catch(function () {
-      render({ images: [{ url: null, alt: '' }] });
-    });
+  var lastPayloadKey = '';
+
+  function payloadKey(data) {
+    try {
+      return JSON.stringify((data && data.images) || []);
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function refreshUpcomingEvents() {
+    return fetch('/api/upcoming-events', { credentials: 'same-origin' })
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var key = payloadKey(data);
+        if (key !== lastPayloadKey) {
+          lastPayloadKey = key;
+          render(data);
+        }
+      })
+      .catch(function () {
+        if (!lastPayloadKey) {
+          lastPayloadKey = '__fallback__';
+          render({ images: [{ url: null, alt: '' }] });
+        }
+      });
+  }
+
+  refreshUpcomingEvents();
+
+  setInterval(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    refreshUpcomingEvents();
+  }, 15000);
 })();

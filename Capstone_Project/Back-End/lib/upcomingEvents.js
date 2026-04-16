@@ -5,6 +5,7 @@
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
+const { parseDataUrlToBuffer, detectImageAssetFormat } = require('./detectImageAssetFormat');
 
 const FRONT_END = path.join(__dirname, '..', '..', 'Front-End');
 const DATA_PATH = path.join(__dirname, '..', 'data', 'upcoming-events.json');
@@ -16,14 +17,7 @@ const MAX_SLOTS = 6;
 const DEFAULT_SLOTS = 3;
 
 /** Max decoded image size (base64 JSON upload; keep in sync with server body limit) */
-const MAX_IMAGE_BYTES = 1024 * 1024 * 1024;
-
-const MIME_TO_EXT = {
-  'image/jpeg': '.jpg',
-  'image/png': '.png',
-  'image/gif': '.gif',
-  'image/webp': '.webp',
-};
+const MAX_IMAGE_BYTES = 50 * 1024 * 1024;
 
 function ensureDirs() {
   fs.mkdirSync(path.dirname(DATA_PATH), { recursive: true });
@@ -93,24 +87,6 @@ function writeState(state) {
   fs.writeFileSync(DATA_PATH, JSON.stringify(state, null, 2), 'utf8');
 }
 
-function parseDataUrl(dataUrl) {
-  if (!dataUrl || typeof dataUrl !== 'string') return null;
-  const m = /^data:([^;]+);base64,(.+)$/is.exec(dataUrl.trim().replace(/\s/g, ''));
-  if (!m) return null;
-  const mime = m[1].toLowerCase().split(';')[0].trim();
-  const ext = MIME_TO_EXT[mime];
-  if (!ext) return null;
-  let buf;
-  try {
-    buf = Buffer.from(m[2], 'base64');
-  } catch (_) {
-    return null;
-  }
-  if (buf.length > MAX_IMAGE_BYTES) return null;
-  if (buf.length === 0) return null;
-  return { buf, ext, mime };
-}
-
 function deleteFileIfManaged(urlPath) {
   const fp = safeFilePathForUrl(urlPath);
   if (!fp) return;
@@ -151,15 +127,27 @@ function setSlotImage(slotIndex, dataUrl, alt) {
   if (slotIndex < 0 || slotIndex >= len || !Number.isInteger(slotIndex)) {
     return slotBoundsError(len);
   }
-  const parsed = parseDataUrl(dataUrl);
+  const parsed = parseDataUrlToBuffer(dataUrl);
   if (!parsed) {
-    return { ok: false, error: 'Invalid image. Use JPEG, PNG, GIF, or WebP under 1 GB.' };
+    return { ok: false, error: 'Could not read the uploaded file.' };
+  }
+  const buf = parsed.buf;
+  if (buf.length > MAX_IMAGE_BYTES) {
+    return { ok: false, error: 'File must be 50 MB or smaller.' };
+  }
+  const fmt = detectImageAssetFormat(buf, MAX_IMAGE_BYTES);
+  if (!fmt || fmt.ext === '.pdf') {
+    return {
+      ok: false,
+      error:
+        'Unsupported image type. Use PNG, JPG, GIF, WebP, SVG, BMP, TIFF, ICO, AVIF, HEIC, or another common image format.',
+    };
   }
   ensureDirs();
   const prevUrl = state.images[slotIndex] && state.images[slotIndex].url;
-  const name = `slot-${slotIndex}-${crypto.randomBytes(8).toString('hex')}${parsed.ext}`;
+  const name = `slot-${slotIndex}-${crypto.randomBytes(8).toString('hex')}${fmt.ext}`;
   const diskPath = path.join(UPLOAD_DIR, name);
-  fs.writeFileSync(diskPath, parsed.buf);
+  fs.writeFileSync(diskPath, buf);
   const publicUrl = UPLOAD_WEB_PREFIX + name;
   deleteFileIfManaged(prevUrl);
   state.images[slotIndex] = {
