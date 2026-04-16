@@ -20,6 +20,7 @@
 
   var PICKLEBALL_COURT_NUMBERS = [2, 4, 6, 8, 10];
   var TABLE_TENNIS_COURT_NUMBER = 11;
+  var BADMINTON_ONLY_COURTS = [1, 3, 5, 7, 9, 12];
 
   function isPickleballCourtNumber(n) {
     return n !== null && PICKLEBALL_COURT_NUMBERS.indexOf(n) !== -1;
@@ -307,6 +308,35 @@
     return m ? parseInt(m[1], 10) : null;
   }
 
+  function courtRuleDetails(courtNum) {
+    if (courtNum === null) return '';
+    if (isTableTennisCourtNumber(courtNum)) {
+      return (
+        'Court 11 details: badminton or table tennis. ' +
+        'Badminton coaching can be scheduled when the court is set for badminton. ' +
+        'Walk-ins are usually directed to Courts 1, 3, and 5.'
+      );
+    }
+    if (isPickleballCourtNumber(courtNum)) {
+      return (
+        'Court ' +
+        courtNum +
+        ' details: pickleball is allowed on weekdays from 10:00 AM to 5:00 PM. ' +
+        'Outside that window, use this court for badminton. ' +
+        'Badminton coaching can be scheduled when the court is set for badminton.'
+      );
+    }
+    if (BADMINTON_ONLY_COURTS.indexOf(courtNum) !== -1) {
+      return (
+        'Court ' +
+        courtNum +
+        ' details: badminton only. ' +
+        'Badminton coaching is allowed. Walk-ins are usually prioritized on Courts 1, 3, and 5.'
+      );
+    }
+    return 'Court ' + courtNum + ' details: badminton rules apply.';
+  }
+
   function fillTimeSelect(sel) {
     if (!sel) return;
     sel.innerHTML = '';
@@ -357,6 +387,7 @@
       '<button type="button" class="pub-res-modal-close" id="pub-res-modal-close" aria-label="Close">×</button>' +
       '<h3 id="pub-res-modal-title">Request a reservation</h3>' +
       '<p class="pub-res-modal-court" id="pub-res-modal-court-line"></p>' +
+      '<p class="pub-res-modal-details is-hidden" id="pub-res-modal-court-details"></p>' +
       '<p class="pub-res-modal-date" id="pub-res-modal-date-line"></p>' +
       '<div class="pub-res-modal-fields">' +
       '<div class="pub-res-field">' +
@@ -406,6 +437,7 @@
     pendingStartHhmm = String(startHhmm || '').trim();
     var overlay = ensureModal();
     var courtLine = document.getElementById('pub-res-modal-court-line');
+    var courtDetails = document.getElementById('pub-res-modal-court-details');
     var dateLine = document.getElementById('pub-res-modal-date-line');
     var msg = document.getElementById('pub-res-modal-msg');
     var startSel = document.getElementById('pub-res-start');
@@ -416,7 +448,18 @@
     if (startSel && endSel) {
       syncEndTimesAfterStart(startSel, endSel);
     }
+    var courtNum = courtNumFromName(pendingCourtName);
+    var details = mode === 'client' ? courtRuleDetails(courtNum) : '';
     if (courtLine) courtLine.textContent = pendingCourtName || 'Court';
+    if (courtDetails) {
+      if (details) {
+        courtDetails.textContent = details;
+        courtDetails.classList.remove('is-hidden');
+      } else {
+        courtDetails.textContent = '';
+        courtDetails.classList.add('is-hidden');
+      }
+    }
     if (dateLine) dateLine.textContent = 'Date: ' + formatScheduleDateIso(scheduleDate);
     if (msg) {
       msg.textContent = '';
