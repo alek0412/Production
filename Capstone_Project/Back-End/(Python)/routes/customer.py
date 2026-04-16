@@ -6,8 +6,25 @@ from os import urandom
 from ssh_connection import secure_connection
 from dateutil.relativedelta import relativedelta
 
-customer_blueprint=Blueprint("customer",__name__,template_folder="templates")
-sql_connection=secure_connection
+customer_blueprint = Blueprint("customer", __name__, template_folder="templates")
+sql_connection = secure_connection
+
+
+def _session_store_row_fields(row):
+    """Copy customer row fields into Flask session (skip secrets). Values must be cookie-serializable."""
+    for attribute in row:
+        if attribute in ("password", "salt"):
+            continue
+        val = row[attribute]
+        if val is None:
+            session[attribute] = None
+        elif hasattr(val, "isoformat") and not isinstance(val, (str, bytes)):
+            session[attribute] = val.isoformat()
+        elif isinstance(val, (bytes, bytearray)):
+            session[attribute] = val.decode("utf-8", errors="replace")
+        else:
+            session[attribute] = val
+
 @customer_blueprint.route("/api/waiver-register",methods=["post"])
 def add_customer():
     request_json=request.get_json()
@@ -92,14 +109,13 @@ def add_customer():
         return make_response("Server is unable to fetch customer for session", 503)
     row = cust_rows[0]
     session.clear()
-    for attribute in row:
-        if attribute not in ["password", "salt"]:
-            session[attribute] = row[attribute]
+    _session_store_row_fields(row)
     session["password"] = password
     session["is_employee"] = False
     session["is_manager"] = False
     session["is_customer"] = True
     session["waiver_id"] = new_waiver_id
+    session.permanent = True
     return make_response("Customer created successfully!", 201)
 
 
@@ -119,15 +135,13 @@ def customer_login():
     hashed_password=hashlib.pbkdf2_hmac('sha256',password.encode(encoding='utf-8'),bytes.fromhex(customer_query[0]['salt']),50000).hex()
     if hashed_password!=customer_query[0]['password'] or email.lower() != customer_query[0]['email']:
         return make_response("Invalid email or password",401)
-    #Purge employee in session
+    # Purge employee in session
     session.clear()
-    for attribute in customer_query[0]:
-        if attribute not in ["password","salt"]:
-            session[attribute]=customer_query[0][attribute]
-    session['password']=request_json['password']
-    session['is_employee']=False
-    session['is_manager']=False
-    session['is_customer']=True
+    _session_store_row_fields(customer_query[0])
+    session["password"] = request_json["password"]
+    session["is_employee"] = False
+    session["is_manager"] = False
+    session["is_customer"] = True
     # Point session at the real waiver row (fixes legacy rows where customer.waiver_id was set incorrectly).
     cid = session.get("customer_id")
     if cid is not None:
@@ -138,7 +152,8 @@ def customer_login():
         )
         if type(wrows) != int and wrows and len(wrows):
             session["waiver_id"] = wrows[0]["waiver_id"]
-    return make_response("Login successful!",200)
+    session.permanent = True
+    return make_response("Login successful!", 200)
 
 @customer_blueprint.route("/api/customer-logout",methods=['post'])    
 def customer_logout():

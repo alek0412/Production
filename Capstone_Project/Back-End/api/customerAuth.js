@@ -136,6 +136,13 @@ module.exports = async function handleCustomerAuth(req, res, ctx) {
           contentType: 'application/json',
         });
         if (upstream.statusCode === 200) {
+          const flaskCookies = upstream.setCookies || [];
+          const hasFlaskSession = flaskCookies.some((c) => /^session=/i.test(String(c)));
+          if (!hasFlaskSession) {
+            console.warn(
+              '[customer-login] Flask returned 200 but no session Set-Cookie — court booking will fail until Flask session works. Check SECRET_KEY and SESSION_COOKIE_* on Flask.'
+            );
+          }
           const firstName = await lookupCustomerFirstName(data.email);
           const nodeCustomerCookie =
             'customer_session=' +
@@ -144,7 +151,7 @@ module.exports = async function handleCustomerAuth(req, res, ctx) {
             CUSTOMER_COOKIE_MAX_AGE_SEC +
             '; SameSite=Lax';
           const emailCookie = customerEmailCookieHeader(data.email);
-          const cookies = [...upstream.setCookies, nodeCustomerCookie, emailCookie];
+          const cookies = [...flaskCookies, nodeCustomerCookie, emailCookie];
           res.writeHead(200, { 'Content-Type': 'application/json', 'Set-Cookie': cookies });
           res.end(
             JSON.stringify({
@@ -173,6 +180,17 @@ module.exports = async function handleCustomerAuth(req, res, ctx) {
         );
         return true;
       }
+    }
+    if (!CUSTOMER_PREVIEW_LOGIN) {
+      res.writeHead(503, { 'Content-Type': 'application/json' });
+      res.end(
+        JSON.stringify({
+          success: false,
+          message:
+            'Customer login requires the Flask API. Set FLASK_API_URL in Back-End .env (e.g. http://127.0.0.1:3001).',
+        })
+      );
+      return true;
     }
     const email = (data.email || '').trim().toLowerCase();
     const password = data.password || '';
