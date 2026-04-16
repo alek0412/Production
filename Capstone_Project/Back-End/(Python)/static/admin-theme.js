@@ -2,6 +2,16 @@
   var STORAGE_KEY = 'admin-theme';
   var SIDEBAR_KEY = 'admin-sidebar-collapsed';
   var DEFAULT_THEME = 'dark';
+  /** Public home after admin sign-out (matches customer nav). */
+  var GENERAL_HOME = '/client/General_Dashboard.html';
+  /** Other open admin tabs listen for this and redirect to GENERAL_HOME. */
+  var ADMIN_LOGOUT_SYNC_KEY = 'hbc_admin_logout_at';
+
+  window.addEventListener('storage', function (e) {
+    if (e && e.key === ADMIN_LOGOUT_SYNC_KEY) {
+      window.location.href = GENERAL_HOME;
+    }
+  });
 
   function getSidebarCollapsedFromStorage() {
     try {
@@ -143,9 +153,14 @@
       logoutBtn.className = 'admin-logout-btn';
       logoutBtn.textContent = 'Log Out';
       logoutBtn.addEventListener('click', function () {
+        try {
+          localStorage.setItem(ADMIN_LOGOUT_SYNC_KEY, String(Date.now()));
+        } catch (err) {}
         fetch('/api/admin/logout', { method: 'POST', credentials: 'same-origin' })
-          .then(function () { window.location.href = '/client/General_Dashboard.html'; })
-          .catch(function () { window.location.href = '/client/General_Dashboard.html'; });
+          .catch(function () {})
+          .then(function () {
+            window.location.href = GENERAL_HOME;
+          });
       });
       if (document.querySelector('.admin-layout')) {
         sidebarToggleEl = document.createElement('button');

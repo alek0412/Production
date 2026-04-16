@@ -113,13 +113,28 @@ module.exports = async function handleAdminAuth(req, res, ctx) {
   }
 
   if (req.method === 'POST' && pathname === '/api/admin/logout') {
+    const base = flaskBaseUrl(config);
+    const cookieHeader = req.headers.cookie || '';
+    let flaskCookies = [];
+    if (base && cookieHeader) {
+      try {
+        const upstream = await proxyToFlask(base, 'POST', '/api/logout', {
+          cookie: cookieHeader,
+          body: null,
+        });
+        flaskCookies = upstream.setCookies || [];
+      } catch (err) {
+        console.error('[adminAuth] Flask /api/logout:', err.message);
+      }
+    }
+    const clearNodeCookies = [
+      'admin_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax',
+      'admin_manager_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax',
+      'admin_employee_id=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax',
+    ];
     res.writeHead(200, {
       'Content-Type': 'application/json',
-      'Set-Cookie': [
-        'admin_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax',
-        'admin_manager_session=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax',
-        'admin_employee_id=; Path=/; HttpOnly; Max-Age=0; SameSite=Lax',
-      ],
+      'Set-Cookie': clearNodeCookies.concat(flaskCookies),
     });
     res.end(JSON.stringify({ success: true }));
     return true;

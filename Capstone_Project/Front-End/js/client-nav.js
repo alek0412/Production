@@ -81,6 +81,7 @@
   var GENERAL = '/client/General_Dashboard.html';
   var LOGIN_TAB_ADMIN_KEY = 'hbc_login_tab';
   var CUSTOMER_FLAG = 'hbc_customer_logged_in';
+  var CUSTOMER_LOGOUT_SYNC_KEY = 'hbc_customer_logout_at';
 
   function setCustomerFlag() {
     try {
@@ -101,6 +102,27 @@
     } catch (e) {
       return false;
     }
+  }
+
+  function notifyCrossTabLogout() {
+    try {
+      localStorage.setItem(CUSTOMER_LOGOUT_SYNC_KEY, String(Date.now()));
+    } catch (e) {}
+  }
+
+  function performCustomerLogout(adminIn) {
+    clearCustomerFlag();
+    if (!adminIn) {
+      try {
+        sessionStorage.setItem(LOGIN_TAB_ADMIN_KEY, 'admin');
+      } catch (e) {}
+    }
+    notifyCrossTabLogout();
+    fetch('/api/customer-logout', { method: 'POST', credentials: 'same-origin' })
+      .catch(function () {})
+      .then(function () {
+        window.location.href = GENERAL;
+      });
   }
 
   function safeJson(url) {
@@ -137,13 +159,7 @@
   if (params && params.get('logged_in') === '1') {
     setCustomerFlag();
     showLogOut(function () {
-      try {
-        sessionStorage.setItem(LOGIN_TAB_ADMIN_KEY, 'admin');
-      } catch (e) {}
-      clearCustomerFlag();
-      fetch('/api/customer-logout', { method: 'POST', credentials: 'same-origin' }).then(function () {
-        window.location.href = GENERAL;
-      });
+      performCustomerLogout(false);
     });
     if (window.history && window.history.replaceState) {
       window.history.replaceState({}, '', window.location.pathname);
@@ -172,16 +188,15 @@
     }
 
     showLogOut(function () {
-      clearCustomerFlag();
-      if (!adminIn) {
-        try {
-          sessionStorage.setItem(LOGIN_TAB_ADMIN_KEY, 'admin');
-        } catch (e) {}
-      }
-      fetch('/api/customer-logout', { method: 'POST', credentials: 'same-origin' }).then(function () {
-        window.location.href = GENERAL;
-      });
+      performCustomerLogout(adminIn);
     });
+  });
+
+  window.addEventListener('storage', function (e) {
+    if (e && e.key === CUSTOMER_LOGOUT_SYNC_KEY) {
+      clearCustomerFlag();
+      window.location.href = GENERAL;
+    }
   });
 })();
 
