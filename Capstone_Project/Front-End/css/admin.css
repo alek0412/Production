@@ -4611,6 +4611,8 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
   right: 2px;
   top: calc(var(--slot-start) * var(--slot-height));
   height: calc(var(--slot-span) * var(--slot-height) - 2px);
+  /* Short bookings (e.g. 15 min) need a floor so text/past styling does not read as “gone”. */
+  min-height: 1.5rem;
   box-sizing: border-box;
   overflow: hidden;
   z-index: 2;
@@ -4626,15 +4628,15 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
 
 /* Ended reservations stay on the grid but read as historical (admin + public availability). */
 .cal-block.cal-block--past {
-  opacity: 0.62;
-  filter: saturate(0.52) brightness(0.94);
-  border-color: rgba(80, 111, 153, 0.42);
+  opacity: 0.82;
+  filter: saturate(0.58) brightness(0.95);
+  border-color: rgba(80, 111, 153, 0.5);
   z-index: 1;
 }
 
 .cal-block.cal-block--past:hover {
-  filter: saturate(0.62) brightness(0.96);
-  opacity: 0.72;
+  filter: saturate(0.66) brightness(0.97);
+  opacity: 0.9;
 }
 
 .cal-block.is-removing {
@@ -5393,15 +5395,15 @@ body[data-theme="dark"] .cal-block {
 }
 
 body[data-theme="dark"] .cal-block.cal-block--past {
-  opacity: 0.55;
-  filter: saturate(0.45) brightness(0.85);
-  border-color: rgba(148, 163, 184, 0.32);
+  opacity: 0.78;
+  filter: saturate(0.52) brightness(0.9);
+  border-color: rgba(148, 163, 184, 0.45);
   z-index: 1;
 }
 
 body[data-theme="dark"] .cal-block.cal-block--past:hover {
-  opacity: 0.65;
-  filter: saturate(0.55) brightness(0.9);
+  opacity: 0.88;
+  filter: saturate(0.6) brightness(0.94);
 }
 
 body[data-theme="dark"] .cal-block.is-blue {

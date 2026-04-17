@@ -143,18 +143,19 @@
     return Math.round((getDayCloseMinutes(d) - base) / 30) + 1;
   }
 
-  function hhmm24ToSlotStart(s) {
-    var minutes = hhmm24ToMinutes(s);
+  /**
+   * Position blocks by exact start/end (30-min slot = 1.0). Prevents back-to-back bookings
+   * (e.g. 6:30–6:45 and 6:45–7:00) from sharing the same integer slot and hiding each other.
+   */
+  function reservationBlockSlotLayoutFromTimes(startHhmm, endHhmm) {
     var base = getDayOpenMinutes(scheduleDate);
-    var maxStart = scheduleGridSlotCountForDate(scheduleDate) - 1;
-    return Math.max(0, Math.min(maxStart, Math.floor((minutes - base) / 30)));
-  }
-
-  function hhmm24ToSlotEnd(s) {
-    var minutes = hhmm24ToMinutes(s);
-    var base = getDayOpenMinutes(scheduleDate);
-    var n = scheduleGridSlotCountForDate(scheduleDate);
-    return Math.max(0, Math.min(n, Math.ceil((minutes - base) / 30)));
+    var startM = hhmm24ToMinutes(startHhmm);
+    var endM = hhmm24ToMinutes(endHhmm);
+    var startFrac = (startM - base) / 30;
+    var spanFrac = (endM - startM) / 30;
+    if (spanFrac <= 0) spanFrac = 0.5;
+    spanFrac = Math.max(0.5, spanFrac);
+    return { slotStart: startFrac, slotSpan: spanFrac };
   }
 
   function reservationEndedBeforeNow(row) {
@@ -211,12 +212,12 @@
 
   function applyBlockSlotLayout(block) {
     if (!block) return;
-    var start = parseInt(block.dataset.slotStart, 10);
-    var span = parseInt(block.dataset.slotSpan, 10);
+    var start = parseFloat(block.dataset.slotStart);
+    var span = parseFloat(block.dataset.slotSpan);
     var s = Number.isFinite(start) ? start : 0;
-    var n = Number.isFinite(span) ? span : 2;
+    var n = Number.isFinite(span) ? span : 0.5;
     block.style.setProperty('--slot-start', String(s));
-    block.style.setProperty('--slot-span', String(Math.max(1, n)));
+    block.style.setProperty('--slot-span', String(Math.max(0.5, n)));
   }
 
   function buildScheduleBlock(row) {
@@ -228,11 +229,9 @@
       block.classList.add('cal-block--past');
       block.dataset.reservationPast = '1';
     }
-    var ss = hhmm24ToSlotStart(row.reservation_start_time);
-    var es = hhmm24ToSlotEnd(row.reservation_end_time);
-    var span = Math.max(1, es - ss);
-    block.dataset.slotStart = String(ss);
-    block.dataset.slotSpan = String(span);
+    var layout = reservationBlockSlotLayoutFromTimes(row.reservation_start_time, row.reservation_end_time);
+    block.dataset.slotStart = String(layout.slotStart);
+    block.dataset.slotSpan = String(layout.slotSpan);
     block.dataset.reservationId = String(row.reservation_id);
 
     var name =
