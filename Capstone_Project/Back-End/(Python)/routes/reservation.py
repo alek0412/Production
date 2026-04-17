@@ -9,9 +9,13 @@ times = {
         "starting": datetime.datetime.strptime("10:00", "%H:%M"),
         "closing": datetime.datetime.strptime("23:30", "%H:%M"),
     },
-    "weekend": {
+    "saturday": {
         "starting": datetime.datetime.strptime("08:00", "%H:%M"),
         "closing": datetime.datetime.strptime("23:30", "%H:%M"),
+    },
+    "sunday": {
+        "starting": datetime.datetime.strptime("08:00", "%H:%M"),
+        "closing": datetime.datetime.strptime("22:30", "%H:%M"),
     },
 }
 valid_end_times = ["00", "15", "30", "45"]
@@ -36,19 +40,21 @@ def _reservation_end_datetime_central(reservation_date, end_time_raw):
     return central_time.localize(naive, is_dst=None)
 
 
-def _customer_has_blocking_reservation(customer_id):
+def _latest_active_end_same_court(customer_id, court_id):
     """
-    True if the customer has a pending (1) or confirmed (2) reservation that has not ended yet.
-    Past bookings must not block new requests (status rows stay 1/2 until staff changes them).
+    Latest end instant (US/Central) among this customer's pending (1) or confirmed (2) reservations
+    on this court that have not ended yet. None if they may book this court again now.
+    Returns (end_dt_or_none, query_ok). query_ok False means DB error.
     """
     rows = sql_functions.execute_read(
         secure_connection,
-        "select reservation_date, reservation_end_time from reservation where customer_id=%s and reservation_status in (1,2)",
-        (customer_id,),
+        "select reservation_date, reservation_end_time from reservation where customer_id=%s and court_id=%s and reservation_status in (1,2)",
+        (customer_id, court_id),
     )
     if type(rows) == int:
-        return None
+        return (None, False)
     now_ct = datetime.datetime.now(tz=central_time)
+    latest = None
     for row in rows:
         try:
             end_ct = _reservation_end_datetime_central(
@@ -57,8 +63,9 @@ def _customer_has_blocking_reservation(customer_id):
         except (ValueError, KeyError, TypeError):
             continue
         if now_ct < end_ct:
-            return True
-    return False
+            if latest is None or end_ct > latest:
+                latest = end_ct
+    return (latest, True)
 
 
 def _time_to_base_dt(val):
@@ -108,7 +115,13 @@ def add_reservation():
         if total_seconds<=0 or total_seconds>(14*24*60*60):
             return make_response("Unable to reserve in past or reserve for more than 14 days.", 400)
         reservation_day_type = reservation_conversion.weekday()
-        day_type = "weekday" if reservation_day_type in range(5) else "weekend"
+        # Monday=0 … Sunday=6
+        if reservation_day_type < 5:
+            day_type = "weekday"
+        elif reservation_day_type == 5:
+            day_type = "saturday"
+        else:
+            day_type = "sunday"
         close_key = "closing"
         if (start_time_conversion - times[day_type]["starting"]).total_seconds() < 0 or (
             end_time_conversion - times[day_type][close_key]
@@ -141,13 +154,19 @@ def add_reservation():
         if start_time_conversion < court_booking_end and end_time_conversion > court_booking_start:
             return make_response("Court is already booked", 400)
 
-    # One active court reservation at a time — only until that slot ends (past 1/2 rows do not block).
-    blocking = _customer_has_blocking_reservation(customer)
-    if blocking is None:
+    # Same court only: cannot book this court again until the customer's current booking on it ends
+    # (other courts are still allowed). Pending + confirmed count until end time passes.
+    latest_end, ok_same = _latest_active_end_same_court(customer, court)
+    if not ok_same:
         return make_response("Server is unable to verify reservations", 503)
-    if blocking:
+    if latest_end is not None:
+        until = latest_end.strftime("%b %d, %Y %I:%M %p %Z")
         return make_response(
-            "You already have a pending or confirmed reservation. Wait until staff removes it or it is completed.",
+            "You already have an active reservation on Court "
+            + str(court)
+            + " until "
+            + until
+            + ". You can request another time on this court after that ends, or ask staff for help.",
             400,
         )
 

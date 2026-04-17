@@ -422,6 +422,25 @@
         return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate());
       }
 
+      function isWeekendScheduleDay(d) {
+        const w = d.getDay();
+        return w === 0 || w === 6;
+      }
+
+      function scheduleGridBaseMinutes(d) {
+        return isWeekendScheduleDay(d) ? 8 * 60 : 10 * 60;
+      }
+
+      /** Sun 10:30 PM; Mon–Sat 11:30 PM (matches Flask / Node admin). */
+      function scheduleGridCloseMinutes(d) {
+        return d.getDay() === 0 ? 22 * 60 + 30 : 23 * 60 + 30;
+      }
+
+      function scheduleGridSlotCount(d) {
+        const closeMin = scheduleGridCloseMinutes(d);
+        return Math.round((closeMin - scheduleGridBaseMinutes(d)) / 30) + 1;
+      }
+
       function updateScheduleDateDisplay() {
         if (!resDateWeekday || !resDateFull) return;
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -445,6 +464,7 @@
           resScheduleOuter.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
           resScheduleOuter.classList.toggle('res-schedule-outer--other-day', !isToday);
         }
+        updateScheduleGridLayoutForDate();
       }
 
       function shiftScheduleDay(delta) {
@@ -646,6 +666,28 @@
         return 'Court ' + courtNum + ' details: badminton rules apply.';
       }
 
+      /**
+       * Map a vertical click in a court column to a start time (same 30-min rows as the grid).
+       * Ignores clicks on existing blocks (those only open the hover card).
+       */
+      function pickAdminStartTimeFromClick(col, clickTarget, clientY) {
+        if (!col) return '';
+        if (clickTarget && clickTarget.closest && clickTarget.closest('.cal-block')) return '';
+        var body = col.querySelector('.cal-col-body');
+        if (!body) return '';
+        var rect = body.getBoundingClientRect();
+        if (!rect || rect.height <= 0) return '';
+        var y = clientY - rect.top;
+        if (!Number.isFinite(y)) return '';
+        var ratio = Math.max(0, Math.min(0.9999, y / rect.height));
+        var n = scheduleGridSlotCount(scheduleDate);
+        var slot = Math.floor(ratio * n);
+        var maxIdx = n - 1;
+        var idx = Math.max(0, Math.min(maxIdx, slot));
+        var mins = scheduleGridBaseMinutes(scheduleDate) + idx * 30;
+        return formatMinutesAsTime12(mins);
+      }
+
       function syncModalCourtFields() {
         var v = modalCourtName;
         var n = parseCourtNumberFromName(v);
@@ -679,7 +721,7 @@
         }
       }
 
-      function openModal(courtName) {
+      function openModal(courtName, preferredStartTime12h) {
         if (!overlay) return;
         modalCourtName = String(courtName || '').trim();
         var courtDisplay = document.getElementById('res-modal-court-display');
@@ -694,6 +736,12 @@
         syncModalCourtFields();
         clearClientSelection();
         if (resClientSearchInput) resClientSearchInput.value = '';
+        if (preferredStartTime12h && startSelect) {
+          var hasOpt = Array.from(startSelect.options).some(function (o) {
+            return o.value === preferredStartTime12h;
+          });
+          if (hasOpt) startSelect.value = preferredStartTime12h;
+        }
         updateEndTimeFromForm();
         overlay.classList.remove('is-hidden');
         overlay.setAttribute('aria-hidden', 'false');
@@ -738,14 +786,36 @@
 
       function hhmm24ToSlotStart(s) {
         var minutes = hhmm24ToMinutes(s);
-        var base = 10 * 60;
-        return Math.max(0, Math.min(27, Math.floor((minutes - base) / 30)));
+        var base = scheduleGridBaseMinutes(scheduleDate);
+        var maxStart = scheduleGridSlotCount(scheduleDate) - 1;
+        return Math.max(0, Math.min(maxStart, Math.floor((minutes - base) / 30)));
       }
 
       function hhmm24ToSlotEnd(s) {
         var minutes = hhmm24ToMinutes(s);
-        var base = 10 * 60;
-        return Math.max(0, Math.min(28, Math.ceil((minutes - base) / 30)));
+        var base = scheduleGridBaseMinutes(scheduleDate);
+        var n = scheduleGridSlotCount(scheduleDate);
+        return Math.max(0, Math.min(n, Math.ceil((minutes - base) / 30)));
+      }
+
+      /** True when reservation end (local date+time) is before now — block stays on calendar but styled muted. */
+      function reservationEndedBeforeNow(row) {
+        var ds = String(row && row.reservation_date ? row.reservation_date : '').trim();
+        var ts = String(row && row.reservation_end_time ? row.reservation_end_time : '').trim();
+        if (!ds || !ts) return false;
+        var dp = ds.split('-');
+        if (dp.length !== 3) return false;
+        var y = parseInt(dp[0], 10);
+        var mo = parseInt(dp[1], 10) - 1;
+        var da = parseInt(dp[2], 10);
+        var tp = ts.split(':');
+        var h = parseInt(tp[0], 10);
+        var mi = parseInt(tp[1] || '0', 10);
+        var se = parseInt(tp[2] || '0', 10);
+        if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(da)) return false;
+        if (!Number.isFinite(h) || !Number.isFinite(mi)) return false;
+        var endDt = new Date(y, mo, da, h, mi, Number.isFinite(se) ? se : 0);
+        return endDt.getTime() < Date.now();
       }
 
       function visualClassForDbBlock(courtNum, status) {
@@ -760,6 +830,10 @@
         var courtNum = row.court_id != null ? parseInt(row.court_id, 10) : null;
         var block = document.createElement('div');
         block.className = 'cal-block cal-block--db ' + visualClassForDbBlock(courtNum, row.reservation_status);
+        if (reservationEndedBeforeNow(row)) {
+          block.classList.add('cal-block--past');
+          block.dataset.reservationPast = '1';
+        }
         var ss = hhmm24ToSlotStart(row.reservation_start_time);
         var es = hhmm24ToSlotEnd(row.reservation_end_time);
         var span = Math.max(1, es - ss);
@@ -1004,17 +1078,19 @@
       function parseTimeToSlot(timeStr) {
         const minutes = parseTimeLabelToMinutes(timeStr);
         if (minutes === null) return 0;
-        const base = 10 * 60;
+        const base = scheduleGridBaseMinutes(scheduleDate);
+        const maxStart = scheduleGridSlotCount(scheduleDate) - 1;
         const idx = Math.floor((minutes - base) / 30);
-        return Math.max(0, Math.min(27, idx));
+        return Math.max(0, Math.min(maxStart, idx));
       }
  
       function parseEndTimeToSlot(timeStr) {
         const minutes = parseTimeLabelToMinutes(timeStr);
         if (minutes === null) return 0;
-        const base = 10 * 60;
+        const base = scheduleGridBaseMinutes(scheduleDate);
+        const n = scheduleGridSlotCount(scheduleDate);
         const idx = Math.ceil((minutes - base) / 30);
-        return Math.max(0, Math.min(28, idx));
+        return Math.max(0, Math.min(n, idx));
       }
  
       function updateEndTimeFromForm() {
@@ -1025,22 +1101,40 @@
         endInput.value = formatMinutesAsTime12(sm + len);
       }
  
-      function initFormTimeControls() {
-        if (!startSelect || !serviceSelect) return;
- 
+      function refreshAdminBookingFormStartOptions() {
+        if (!startSelect) return;
+        const prevVal = startSelect.value;
+        const openM = scheduleGridBaseMinutes(scheduleDate);
         startSelect.innerHTML = '';
-        for (let m = 10 * 60; m <= 23 * 60 + 45; m += 15) {
+        const closeCap = scheduleGridCloseMinutes(scheduleDate);
+        for (let m = openM; m <= closeCap - 15; m += 15) {
           const opt = document.createElement('option');
           opt.value = formatMinutesAsTime12(m);
           opt.textContent = opt.value;
-          if (m === 14 * 60) opt.selected = true;
           startSelect.appendChild(opt);
         }
- 
+        let applied = false;
+        if (prevVal && Array.from(startSelect.options).some(function (o) { return o.value === prevVal; })) {
+          startSelect.value = prevVal;
+          applied = true;
+        }
+        if (!applied) {
+          const target = 14 * 60;
+          const pick = target >= openM && target <= closeCap - 15 ? target : openM;
+          const match = Array.from(startSelect.options).find(function (o) {
+            return parseTimeLabelToMinutes(o.value) === pick;
+          });
+          if (match) startSelect.value = match.value;
+          else if (startSelect.options[0]) startSelect.selectedIndex = 0;
+        }
+        updateEndTimeFromForm();
+      }
+
+      function initFormTimeControls() {
+        if (!startSelect || !serviceSelect) return;
+        refreshAdminBookingFormStartOptions();
         startSelect.addEventListener('change', updateEndTimeFromForm);
         serviceSelect.addEventListener('change', updateEndTimeFromForm);
- 
-        updateEndTimeFromForm();
       }
  
       function serviceToSlotSpan(serviceLabel) {
@@ -1049,23 +1143,33 @@
         return Math.max(1, Math.round(hrs * 2));
       }
  
-      function buildTimeScale() {
-        if (!timeScale || timeScale.dataset.built === '1') return;
-        const labels = [];
-        for (let minutes = 10 * 60; minutes <= 23 * 60 + 30; minutes += 30) {
+      function rebuildTimeScale() {
+        if (!timeScale) return;
+        timeScale.innerHTML = '';
+        const openM = scheduleGridBaseMinutes(scheduleDate);
+        const closeM = scheduleGridCloseMinutes(scheduleDate);
+        for (let minutes = openM; minutes <= closeM; minutes += 30) {
           const h24 = Math.floor(minutes / 60);
           const m = minutes % 60;
           const suffix = h24 >= 12 ? 'PM' : 'AM';
           const h12 = ((h24 + 11) % 12) + 1;
-          labels.push(h12 + ':' + String(m).padStart(2, '0') + ' ' + suffix);
-        }
-        labels.forEach(function (label) {
+          const label = h12 + ':' + String(m).padStart(2, '0') + ' ' + suffix;
           const row = document.createElement('div');
           row.className = 'time-slot';
           row.textContent = label;
           timeScale.appendChild(row);
-        });
+        }
         timeScale.dataset.built = '1';
+      }
+
+      function updateScheduleGridLayoutForDate() {
+        const wrap = document.querySelector('.reservations-schedule-wrap');
+        if (wrap) {
+          wrap.classList.toggle('schedule-grid--weekend', isWeekendScheduleDay(scheduleDate));
+          wrap.classList.toggle('schedule-grid--sunday', scheduleDate.getDay() === 0);
+        }
+        rebuildTimeScale();
+        refreshAdminBookingFormStartOptions();
       }
  
       function getCourtNumberFromBlock(block) {
@@ -1155,7 +1259,8 @@
           const col = event.target.closest('.cal-col');
           if (!col) return;
           const court = col.getAttribute('data-court') || '';
-          openModal(court);
+          var startGuess = pickAdminStartTimeFromClick(col, event.target, event.clientY);
+          openModal(court, startGuess || undefined);
         });
  
         calendar.addEventListener('mouseover', function (event) {
@@ -1430,7 +1535,6 @@
       initScheduleDateControls();
       initFormTimeControls();
       initPendingCourtRequests();
-      buildTimeScale();
       syncModalCourtFields();
       refreshScheduleFromServer();
       window.setInterval(refreshScheduleFromServer, 5000);

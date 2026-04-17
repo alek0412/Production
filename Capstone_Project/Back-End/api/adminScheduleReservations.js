@@ -13,8 +13,16 @@ const db = require('../db/connection');
 
 const BUSINESS = {
   weekday: { startMin: 10 * 60, closeMin: 23 * 60 + 30 },
-  weekend: { startMin: 8 * 60, closeMin: 23 * 60 + 30 },
+  saturday: { startMin: 8 * 60, closeMin: 23 * 60 + 30 },
+  sunday: { startMin: 8 * 60, closeMin: 22 * 60 + 30 },
 };
+
+/** pyDow: Monday=0 … Sunday=6 (matches Python weekday()). */
+function businessHoursForPythonDow(pyDow) {
+  if (pyDow < 5) return BUSINESS.weekday;
+  if (pyDow === 5) return BUSINESS.saturday;
+  return BUSINESS.sunday;
+}
 const VALID_MINUTE_SUFFIXES = ['00', '15', '30', '45'];
 
 
@@ -372,8 +380,7 @@ module.exports = async function handleAdminScheduleReservations(req, res, ctx) {
     }
 
     const pyDow = pythonWeekdayFromYMD(reservationDate);
-    const dayType = pyDow < 5 ? 'weekday' : 'weekend';
-    const { startMin: openMin, closeMin } = BUSINESS[dayType];
+    const { startMin: openMin, closeMin } = businessHoursForPythonDow(pyDow);
 
     if (startMin < openMin || endMin > closeMin) {
       sendJson(res, 400, { success: false, message: 'Cannot reserve outside of business hours' });

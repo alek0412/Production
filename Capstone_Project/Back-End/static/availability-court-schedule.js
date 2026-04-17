@@ -131,21 +131,56 @@
     return formatMinutesAsTime12(hhmm24ToMinutes(s));
   }
 
+  /** Mon–Fri 11:30 PM; Sat 11:30 PM; Sun 10:30 PM (matches Flask / admin APIs). */
+  function getDayCloseMinutes(d) {
+    var wd = d.getDay();
+    if (wd === 0) return 22 * 60 + 30;
+    return 23 * 60 + 30;
+  }
+
+  function scheduleGridSlotCountForDate(d) {
+    var base = getDayOpenMinutes(d);
+    return Math.round((getDayCloseMinutes(d) - base) / 30) + 1;
+  }
+
   function hhmm24ToSlotStart(s) {
     var minutes = hhmm24ToMinutes(s);
-    var base = 10 * 60;
-    return Math.max(0, Math.min(27, Math.floor((minutes - base) / 30)));
+    var base = getDayOpenMinutes(scheduleDate);
+    var maxStart = scheduleGridSlotCountForDate(scheduleDate) - 1;
+    return Math.max(0, Math.min(maxStart, Math.floor((minutes - base) / 30)));
   }
 
   function hhmm24ToSlotEnd(s) {
     var minutes = hhmm24ToMinutes(s);
-    var base = 10 * 60;
-    return Math.max(0, Math.min(28, Math.ceil((minutes - base) / 30)));
+    var base = getDayOpenMinutes(scheduleDate);
+    var n = scheduleGridSlotCountForDate(scheduleDate);
+    return Math.max(0, Math.min(n, Math.ceil((minutes - base) / 30)));
+  }
+
+  function reservationEndedBeforeNow(row) {
+    var ds = String(row && row.reservation_date ? row.reservation_date : '').trim();
+    var ts = String(row && row.reservation_end_time ? row.reservation_end_time : '').trim();
+    if (!ds || !ts) return false;
+    var dp = ds.split('-');
+    if (dp.length !== 3) return false;
+    var y = parseInt(dp[0], 10);
+    var mo = parseInt(dp[1], 10) - 1;
+    var da = parseInt(dp[2], 10);
+    var tp = ts.split(':');
+    var h = parseInt(tp[0], 10);
+    var mi = parseInt(tp[1] || '0', 10);
+    var se = parseInt(tp[2] || '0', 10);
+    if (!Number.isFinite(y) || !Number.isFinite(mo) || !Number.isFinite(da)) return false;
+    if (!Number.isFinite(h) || !Number.isFinite(mi)) return false;
+    var endDt = new Date(y, mo, da, h, mi, Number.isFinite(se) ? se : 0);
+    return endDt.getTime() < Date.now();
   }
 
   function slotIndexToHhmm(slotIdx) {
-    var idx = Number.isFinite(slotIdx) ? Math.max(0, Math.min(27, slotIdx)) : 0;
-    var mins = 10 * 60 + idx * 30;
+    var base = getDayOpenMinutes(scheduleDate);
+    var maxIdx = scheduleGridSlotCountForDate(scheduleDate) - 1;
+    var idx = Number.isFinite(slotIdx) ? Math.max(0, Math.min(maxIdx, slotIdx)) : 0;
+    var mins = base + idx * 30;
     return pad2(Math.floor(mins / 60)) + ':' + pad2(mins % 60);
   }
 
@@ -189,6 +224,10 @@
     var block = document.createElement('div');
     block.className =
       'cal-block cal-block--db cal-block--public ' + visualClassForDbBlock(courtNum, row.reservation_status);
+    if (reservationEndedBeforeNow(row)) {
+      block.classList.add('cal-block--past');
+      block.dataset.reservationPast = '1';
+    }
     var ss = hhmm24ToSlotStart(row.reservation_start_time);
     var es = hhmm24ToSlotEnd(row.reservation_end_time);
     var span = Math.max(1, es - ss);
@@ -236,22 +275,45 @@
         calendar.querySelectorAll('.cal-block--db').forEach(function (el) {
           el.remove();
         });
-        if (!out.ok || !out.data || !out.data.success || !out.data.reservations) return;
-        out.data.reservations.forEach(function (row) {
-          var cid = row.court_id;
-          var col = calendar.querySelector('.cal-col[data-court="Court ' + cid + '"]');
-          if (!col) return;
-          var body = col.querySelector('.cal-col-body');
-          if (!body) return;
-          body.appendChild(buildScheduleBlock(row));
-        });
+        if (out.ok && out.data && out.data.success && out.data.reservations) {
+          out.data.reservations.forEach(function (row) {
+            var cid = row.court_id;
+            var col = calendar.querySelector('.cal-col[data-court="Court ' + cid + '"]');
+            if (!col) return;
+            var body = col.querySelector('.cal-col-body');
+            if (!body) return;
+            body.appendChild(buildScheduleBlock(row));
+          });
+        }
+        refillPubModalTimesIfVisible();
       })
       .catch(function () {});
   }
 
+  /** If the booking modal is open, refresh start/end options (e.g. today’s “next slot” moved). */
+  function refillPubModalTimesIfVisible() {
+    var overlay = document.getElementById('pub-res-modal-overlay');
+    if (!overlay || overlay.classList.contains('is-hidden')) return;
+    var startSel = document.getElementById('pub-res-start');
+    var endSel = document.getElementById('pub-res-end');
+    if (!startSel || !endSel) return;
+    var keep = startSel.value;
+    fillStartSelectForScheduleDate(startSel);
+    if (keep && startSel.querySelector('option[value="' + keep + '"]')) {
+      startSel.value = keep;
+    } else if (startSel.options.length && !startSel.options[0].disabled) {
+      startSel.selectedIndex = 0;
+    }
+    syncEndTimesAfterStart(startSel, endSel);
+  }
+
   function buildTimeScale(el) {
-    if (!el || el.dataset.built === '1') return;
-    for (var minutes = 10 * 60; minutes <= 23 * 60 + 30; minutes += 30) {
+    if (!el) return;
+    el.innerHTML = '';
+    el.dataset.built = '';
+    var openM = getDayOpenMinutes(scheduleDate);
+    var closeM = getDayCloseMinutes(scheduleDate);
+    for (var minutes = openM; minutes <= closeM; minutes += 30) {
       var h24 = Math.floor(minutes / 60);
       var m = minutes % 60;
       var suffix = h24 >= 12 ? 'PM' : 'AM';
@@ -263,6 +325,16 @@
       el.appendChild(row);
     }
     el.dataset.built = '1';
+  }
+
+  function applyPublicScheduleGridLayout() {
+    var wrap = document.querySelector('.public-res-embed .reservations-schedule-wrap');
+    if (wrap) {
+      var wd = scheduleDate.getDay();
+      wrap.classList.toggle('schedule-grid--weekend', wd === 0 || wd === 6);
+      wrap.classList.toggle('schedule-grid--sunday', wd === 0);
+    }
+    buildTimeScale(timeScale);
   }
 
   function updateDateDisplay() {
@@ -301,6 +373,7 @@
       outer.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
       outer.classList.toggle('res-schedule-outer--other-day', !isToday);
     }
+    applyPublicScheduleGridLayout();
   }
 
   function courtNumFromName(name) {
@@ -337,26 +410,69 @@
     return 'Court ' + courtNum + ' details: badminton rules apply.';
   }
 
-  function fillTimeSelect(sel) {
-    if (!sel) return;
-    sel.innerHTML = '';
-    for (var m = 10 * 60; m <= 23 * 60 + 45; m += 15) {
+  /** Match Flask: weekday 10:00; Sat/Sun 08:00. */
+  function getDayOpenMinutes(d) {
+    var wd = d.getDay();
+    return wd === 0 || wd === 6 ? 8 * 60 : 10 * 60;
+  }
+
+  /**
+   * Earliest bookable start (minutes from midnight, local): business open, or next 15-min
+   * tick after now when the schedule day is today.
+   */
+  function earliestStartMinutesForScheduleDay(dayDate) {
+    var openM = getDayOpenMinutes(dayDate);
+    var todayMarker = new Date();
+    todayMarker.setHours(12, 0, 0, 0);
+    if (!isSameCalendarDay(dayDate, todayMarker)) {
+      return openM;
+    }
+    var now = new Date();
+    var nowM = now.getHours() * 60 + now.getMinutes();
+    var nextFifteen = Math.ceil((nowM + 1) / 15) * 15;
+    return Math.max(openM, nextFifteen);
+  }
+
+  function fillStartSelectForScheduleDate(startSel) {
+    if (!startSel) return;
+    var minM = earliestStartMinutesForScheduleDay(scheduleDate);
+    var lastStartM = getDayCloseMinutes(scheduleDate) - 15;
+    startSel.innerHTML = '';
+    if (minM > lastStartM) {
+      var dis = document.createElement('option');
+      dis.value = '';
+      dis.disabled = true;
+      dis.textContent = 'No start times available for this day';
+      startSel.appendChild(dis);
+      return;
+    }
+    for (var m = minM; m <= lastStartM; m += 15) {
       var h = Math.floor(m / 60);
       var min = m % 60;
       var opt = document.createElement('option');
       opt.value = pad2(h) + ':' + pad2(min);
       opt.textContent = formatMinutesAsTime12(m);
-      sel.appendChild(opt);
+      startSel.appendChild(opt);
     }
   }
 
+  /** Closing matches day (Sun 22:30, else 23:30); max duration 4.5h (Flask). */
   function syncEndTimesAfterStart(startSel, endSel) {
     if (!startSel || !endSel) return;
+    if (!startSel.value) {
+      endSel.innerHTML = '';
+      return;
+    }
     var startMin = hhmm24ToMinutes(startSel.value);
+    if (!Number.isFinite(startMin)) {
+      endSel.innerHTML = '';
+      return;
+    }
     var previousEnd = endSel.value;
+    var dayCloseMin = getDayCloseMinutes(scheduleDate);
+    var maxEndMin = Math.min(dayCloseMin, startMin + 270);
     endSel.innerHTML = '';
-    for (var m = 10 * 60; m <= 23 * 60 + 45; m += 15) {
-      if (m <= startMin) continue;
+    for (var m = startMin + 15; m <= maxEndMin; m += 15) {
       var h = Math.floor(m / 60);
       var min = m % 60;
       var opt = document.createElement('option');
@@ -366,10 +482,11 @@
     }
     if (!endSel.options.length) return;
     var wanted = hhmm24ToMinutes(previousEnd);
-    if (wanted > startMin) {
+    if (wanted > startMin && wanted <= maxEndMin) {
       endSel.value = previousEnd;
-    } else if (startMin + 60 <= 23 * 60 + 45) {
-      endSel.value = pad2(Math.floor((startMin + 60) / 60)) + ':' + pad2((startMin + 60) % 60);
+    } else if (startMin + 60 <= maxEndMin) {
+      var def = startMin + 60;
+      endSel.value = pad2(Math.floor(def / 60)) + ':' + pad2(def % 60);
     } else {
       endSel.selectedIndex = 0;
     }
@@ -377,7 +494,19 @@
 
   function ensureModal() {
     var existing = document.getElementById('pub-res-modal-overlay');
-    if (existing) return existing;
+    if (existing) {
+      if (!document.getElementById('pub-res-modal-same-court-hint')) {
+        var dateLineEl = document.getElementById('pub-res-modal-date-line');
+        var hintEl = document.createElement('p');
+        hintEl.id = 'pub-res-modal-same-court-hint';
+        hintEl.className = 'pub-res-modal-same-court-hint is-hidden';
+        hintEl.setAttribute('role', 'status');
+        if (dateLineEl && dateLineEl.parentNode) {
+          dateLineEl.parentNode.insertBefore(hintEl, dateLineEl.nextSibling);
+        }
+      }
+      return existing;
+    }
     var wrap = document.createElement('div');
     wrap.id = 'pub-res-modal-overlay';
     wrap.className = 'pub-res-modal-overlay is-hidden';
@@ -389,6 +518,7 @@
       '<p class="pub-res-modal-court" id="pub-res-modal-court-line"></p>' +
       '<p class="pub-res-modal-details is-hidden" id="pub-res-modal-court-details"></p>' +
       '<p class="pub-res-modal-date" id="pub-res-modal-date-line"></p>' +
+      '<p class="pub-res-modal-same-court-hint is-hidden" id="pub-res-modal-same-court-hint" role="status"></p>' +
       '<div class="pub-res-modal-fields">' +
       '<div class="pub-res-field">' +
       '<label class="pub-res-label" for="pub-res-start"><span class="pub-res-label-text">Start time</span></label>' +
@@ -407,9 +537,7 @@
     document.body.appendChild(wrap);
     var startSel = document.getElementById('pub-res-start');
     var endSel = document.getElementById('pub-res-end');
-    fillTimeSelect(startSel);
-    fillTimeSelect(endSel);
-    if (startSel && startSel.options[16]) startSel.selectedIndex = 16;
+    fillStartSelectForScheduleDate(startSel);
     if (startSel && endSel) {
       syncEndTimesAfterStart(startSel, endSel);
       startSel.addEventListener('change', function () {
@@ -432,6 +560,58 @@
   var pendingCourtName = '';
   var pendingStartHhmm = '';
 
+  function applySameCourtBookingGuard(courtNum) {
+    var hint = document.getElementById('pub-res-modal-same-court-hint');
+    var submitBtn = document.getElementById('pub-res-submit');
+    if (submitBtn) {
+      submitBtn.disabled = false;
+      submitBtn.removeAttribute('data-pub-res-blocked');
+    }
+    if (mode !== 'client' || courtNum == null) {
+      if (hint) {
+        hint.textContent = '';
+        hint.classList.add('is-hidden');
+      }
+      return;
+    }
+    fetch('/api/customer-bookings', { credentials: 'same-origin' })
+      .then(function (r) {
+        return r.json().then(function (data) {
+          return { ok: r.ok, data: data };
+        });
+      })
+      .then(function (out) {
+        if (!hint || !submitBtn) return;
+        if (!out.ok || !out.data || !out.data.success || !out.data.reservations) {
+          hint.classList.add('is-hidden');
+          return;
+        }
+        var block = null;
+        for (var i = 0; i < out.data.reservations.length; i++) {
+          var row = out.data.reservations[i];
+          if (Number(row.courtId) !== courtNum) continue;
+          if (row.segment !== 'upcoming') continue;
+          block = row;
+          break;
+        }
+        if (block) {
+          hint.textContent =
+            'You already have an active reservation on this court until that booking ends (' +
+            (block.detailLine || block.headline || 'see My Bookings') +
+            '). You can request another time on this court after that, or ask staff for help.';
+          hint.classList.remove('is-hidden');
+          submitBtn.disabled = true;
+          submitBtn.setAttribute('data-pub-res-blocked', '1');
+        } else {
+          hint.textContent = '';
+          hint.classList.add('is-hidden');
+        }
+      })
+      .catch(function () {
+        if (hint) hint.classList.add('is-hidden');
+      });
+  }
+
   function openBookingModal(courtName, startHhmm) {
     pendingCourtName = String(courtName || '').trim();
     pendingStartHhmm = String(startHhmm || '').trim();
@@ -442,8 +622,17 @@
     var msg = document.getElementById('pub-res-modal-msg');
     var startSel = document.getElementById('pub-res-start');
     var endSel = document.getElementById('pub-res-end');
-    if (startSel && pendingStartHhmm && startSel.querySelector('option[value="' + pendingStartHhmm + '"]')) {
-      startSel.value = pendingStartHhmm;
+    fillStartSelectForScheduleDate(startSel);
+    var minStartM = earliestStartMinutesForScheduleDay(scheduleDate);
+    if (startSel && pendingStartHhmm) {
+      var wantM = hhmm24ToMinutes(pendingStartHhmm);
+      if (wantM >= minStartM && startSel.querySelector('option[value="' + pendingStartHhmm + '"]')) {
+        startSel.value = pendingStartHhmm;
+      } else if (startSel.options.length && !startSel.options[0].disabled) {
+        startSel.selectedIndex = 0;
+      }
+    } else if (startSel && startSel.options.length && !startSel.options[0].disabled) {
+      startSel.selectedIndex = 0;
     }
     if (startSel && endSel) {
       syncEndTimesAfterStart(startSel, endSel);
@@ -465,6 +654,7 @@
       msg.textContent = '';
       msg.className = 'pub-res-modal-msg';
     }
+    applySameCourtBookingGuard(courtNum);
     overlay.classList.remove('is-hidden');
     overlay.setAttribute('aria-hidden', 'false');
   }
@@ -481,12 +671,39 @@
       }
       return;
     }
+    if (
+      !startSel ||
+      !startSel.value ||
+      (startSel.options[0] && startSel.options[0].disabled)
+    ) {
+      if (msg) {
+        msg.textContent = 'No valid start times for this day. Pick another date or try later.';
+        msg.className = 'pub-res-modal-msg pub-res-modal-msg--err';
+      }
+      return;
+    }
+    if (!endSel || !endSel.value) {
+      if (msg) {
+        msg.textContent = 'Choose an end time.';
+        msg.className = 'pub-res-modal-msg pub-res-modal-msg--err';
+      }
+      return;
+    }
     var body = {
       court_id: n,
       reservation_date: formatScheduleDateIso(scheduleDate),
-      reservation_start_time: startSel ? startSel.value : '10:00',
-      reservation_end_time: endSel ? endSel.value : '11:00',
+      reservation_start_time: startSel.value,
+      reservation_end_time: endSel.value,
     };
+    var submitBtnGuard = document.getElementById('pub-res-submit');
+    if (submitBtnGuard && submitBtnGuard.getAttribute('data-pub-res-blocked') === '1') {
+      if (msg) {
+        msg.textContent =
+          'Wait until your current reservation on this court ends before requesting another slot, or ask staff.';
+        msg.className = 'pub-res-modal-msg pub-res-modal-msg--err';
+      }
+      return;
+    }
     if (msg) msg.textContent = 'Sending…';
     fetch('/api/reservation', {
       method: 'POST',
@@ -546,7 +763,8 @@
     var y = clientY - rect.top;
     if (!Number.isFinite(y)) return '';
     var ratio = Math.max(0, Math.min(0.9999, y / rect.height));
-    var slot = Math.floor(ratio * 28);
+    var n = scheduleGridSlotCountForDate(scheduleDate);
+    var slot = Math.floor(ratio * n);
     return slotIndexToHhmm(slot);
   }
 
@@ -591,7 +809,6 @@
 
   var calendar = document.getElementById('pub-reservations-calendar');
   var timeScale = document.getElementById('pub-reservations-time-scale');
-  buildTimeScale(timeScale);
   updateDateDisplay();
   refreshScheduleFromApi();
   window.setInterval(refreshScheduleFromApi, 20000);
@@ -608,6 +825,7 @@
       scheduleDate = d;
       updateDateDisplay();
       refreshScheduleFromApi();
+      refillPubModalTimesIfVisible();
     });
   if (next)
     next.addEventListener('click', function () {
@@ -616,6 +834,7 @@
       scheduleDate = d;
       updateDateDisplay();
       refreshScheduleFromApi();
+      refillPubModalTimesIfVisible();
     });
 
   var shell = document.querySelector('.public-res-embed .reservations-shell');
