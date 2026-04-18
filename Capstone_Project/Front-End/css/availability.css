@@ -536,6 +536,23 @@
   justify-content: center;
 }
 
+/* Public schedule embed: court headers + corner stick on vertical scroll (page or inner container) */
+.availability-page .public-res-embed .res-schedule-corner,
+.availability-page .public-res-embed .res-schedule-headers {
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.availability-page .public-res-embed .res-schedule-corner {
+  z-index: 18;
+}
+
+.availability-page .public-res-embed .res-schedule-headers {
+  z-index: 15;
+  box-shadow: 0 3px 12px rgba(15, 23, 42, 0.12);
+}
+
 /*
  * Mobile-only (narrow phones): Popular times + court schedule stay readable.
  * max-width: 640px — does not apply at typical desktop/laptop window widths.
@@ -576,18 +593,9 @@
     touch-action: pan-x pan-y;
   }
 
-  /* Keep court header boxes visible while scrolling time slots on phones. */
+  /* Corner also pins horizontally while scrolling courts (sticky top/left set globally above) */
   .availability-page .public-res-embed .res-schedule-corner {
-    position: sticky;
-    top: 0;
     left: 0;
-    z-index: 18;
-  }
-
-  .availability-page .public-res-embed .res-schedule-headers {
-    position: sticky;
-    top: 0;
-    z-index: 15;
   }
 
   /* Keep time labels pinned while horizontally scrolling courts. */

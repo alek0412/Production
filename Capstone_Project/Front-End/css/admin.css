@@ -3973,6 +3973,19 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   align-items: stretch;
 }
 
+/* Admin Reservations: court labels + corner stay visible while .admin-content scrolls */
+.admin-main:has(.reservations-page) .res-schedule-corner,
+.admin-main:has(.reservations-page) .res-schedule-headers {
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  align-self: start;
+}
+
+.admin-main:has(.reservations-page) .res-schedule-headers {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
+}
+
 .res-schedule-headers .cal-col-head {
   margin: 0;
   background: #4a4a4a;
