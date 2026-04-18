@@ -17,8 +17,6 @@
     'Thank you for reserving. If you need to cancel, call 346-229-4921.';
   var scheduleDate = new Date();
   scheduleDate.setHours(12, 0, 0, 0);
-  /** 'back' | 'forward' | null — blue vs green date chrome after prev/next */
-  var scheduleNavDir = null;
 
   var PICKLEBALL_COURT_NUMBERS = [2, 4, 6, 8, 10];
   var TABLE_TENNIS_COURT_NUMBER = 11;
@@ -85,6 +83,15 @@
       a.getMonth() === b.getMonth() &&
       a.getDate() === b.getDate()
     );
+  }
+
+  /** -1 = day before today, 0 = today, 1 = after today (local calendar dates). */
+  function compareScheduleDayToToday(dayDate, todayDate) {
+    var a = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime();
+    var b = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate()).getTime();
+    if (a < b) return -1;
+    if (a > b) return 1;
+    return 0;
   }
 
   var CAL_COLS_HTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
@@ -404,20 +411,22 @@
     var today = new Date();
     today.setHours(12, 0, 0, 0);
     var isToday = isSameCalendarDay(scheduleDate, today);
-    if (isToday) scheduleNavDir = null;
+    var dayVsToday = compareScheduleDayToToday(scheduleDate, today);
+    var isPastDay = dayVsToday === -1;
+    var isFutureDay = dayVsToday === 1;
     wk.textContent = days[scheduleDate.getDay()] + (isToday ? ' · Today' : '');
     full.textContent =
       months[scheduleDate.getMonth()] + ' ' + scheduleDate.getDate() + ', ' + scheduleDate.getFullYear();
     full.setAttribute('datetime', formatScheduleDateIso(scheduleDate));
     if (toolbar) {
       toolbar.classList.toggle('res-date-toolbar--today', isToday);
-      toolbar.classList.toggle('res-date-toolbar--nav-back', !isToday && scheduleNavDir === 'back');
-      toolbar.classList.toggle('res-date-toolbar--nav-forward', !isToday && scheduleNavDir === 'forward');
+      toolbar.classList.toggle('res-date-toolbar--nav-back', isPastDay);
+      toolbar.classList.toggle('res-date-toolbar--nav-forward', isFutureDay);
     }
     if (outer) {
       outer.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
-      outer.classList.toggle('res-schedule-outer--nav-back', !isToday && scheduleNavDir === 'back');
-      outer.classList.toggle('res-schedule-outer--nav-forward', !isToday && scheduleNavDir === 'forward');
+      outer.classList.toggle('res-schedule-outer--nav-back', isPastDay);
+      outer.classList.toggle('res-schedule-outer--nav-forward', isFutureDay);
     }
     applyPublicScheduleGridLayout();
   }
@@ -866,7 +875,6 @@
   var next = document.getElementById('pub-res-date-next');
   if (prev)
     prev.addEventListener('click', function () {
-      scheduleNavDir = 'back';
       var d = new Date(scheduleDate.getTime());
       d.setDate(d.getDate() - 1);
       scheduleDate = d;
@@ -876,7 +884,6 @@
     });
   if (next)
     next.addEventListener('click', function () {
-      scheduleNavDir = 'forward';
       var d = new Date(scheduleDate.getTime());
       d.setDate(d.getDate() + 1);
       scheduleDate = d;

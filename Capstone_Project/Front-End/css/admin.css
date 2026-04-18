@@ -3535,7 +3535,7 @@ body:has(.reservations-page) #gh-back-top {
   margin-bottom: 0.2rem;
 }
 
-/* Prev-day navigation: blue · next-day: green (see scheduleNavDir in JS) */
+/* Blue = selected day before today · green = after today (compareScheduleDayToToday in JS) */
 .res-date-toolbar.res-date-toolbar--nav-back {
   border-color: #3b82f6;
   background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);

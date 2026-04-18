@@ -303,8 +303,6 @@
       let clientSearchTimer = null;
       let scheduleDate = new Date();
       scheduleDate.setHours(12, 0, 0, 0);
-      /** 'back' | 'forward' | null — set by prev/next or mini-calendar; drives blue vs green chrome */
-      let scheduleNavDir = null;
       let calendarViewMonth = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
       let miniCalendarOpen = false;
 
@@ -416,6 +414,15 @@
         );
       }
 
+      /** -1 = day before today, 0 = today, 1 = after today (local calendar dates). */
+      function compareScheduleDayToToday(dayDate, todayDate) {
+        const a = new Date(dayDate.getFullYear(), dayDate.getMonth(), dayDate.getDate()).getTime();
+        const b = new Date(todayDate.getFullYear(), todayDate.getMonth(), todayDate.getDate()).getTime();
+        if (a < b) return -1;
+        if (a > b) return 1;
+        return 0;
+      }
+
       function pad2(n) {
         return String(n).padStart(2, '0');
       }
@@ -470,7 +477,9 @@
         const today = new Date();
         today.setHours(12, 0, 0, 0);
         const isToday = isSameCalendarDay(scheduleDate, today);
-        if (isToday) scheduleNavDir = null;
+        const dayVsToday = compareScheduleDayToToday(scheduleDate, today);
+        const isPastDay = dayVsToday === -1;
+        const isFutureDay = dayVsToday === 1;
         resDateWeekday.textContent = days[scheduleDate.getDay()] + (isToday ? ' · Today' : '');
         resDateFull.textContent =
           months[scheduleDate.getMonth()] + ' ' + scheduleDate.getDate() + ', ' + scheduleDate.getFullYear();
@@ -478,21 +487,18 @@
 
         if (resDateToolbar) {
           resDateToolbar.classList.toggle('res-date-toolbar--today', isToday);
-          const back = !isToday && scheduleNavDir === 'back';
-          const fwd = !isToday && scheduleNavDir === 'forward';
-          resDateToolbar.classList.toggle('res-date-toolbar--nav-back', back);
-          resDateToolbar.classList.toggle('res-date-toolbar--nav-forward', fwd);
+          resDateToolbar.classList.toggle('res-date-toolbar--nav-back', isPastDay);
+          resDateToolbar.classList.toggle('res-date-toolbar--nav-forward', isFutureDay);
         }
         if (resScheduleOuter) {
           resScheduleOuter.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
-          resScheduleOuter.classList.toggle('res-schedule-outer--nav-back', !isToday && scheduleNavDir === 'back');
-          resScheduleOuter.classList.toggle('res-schedule-outer--nav-forward', !isToday && scheduleNavDir === 'forward');
+          resScheduleOuter.classList.toggle('res-schedule-outer--nav-back', isPastDay);
+          resScheduleOuter.classList.toggle('res-schedule-outer--nav-forward', isFutureDay);
         }
         updateScheduleGridLayoutForDate();
       }
 
       function shiftScheduleDay(delta) {
-        scheduleNavDir = delta < 0 ? 'back' : delta > 0 ? 'forward' : null;
         const d = new Date(scheduleDate.getTime());
         d.setHours(12, 0, 0, 0);
         d.setDate(d.getDate() + delta);
@@ -556,10 +562,6 @@
           if (isSameCalendarDay(cellDate, scheduleDate)) cell.classList.add('is-selected');
           if (isSameCalendarDay(cellDate, today)) cell.classList.add('is-today');
           cell.addEventListener('click', function () {
-            const before = new Date(scheduleDate.getTime());
-            if (cellDate.getTime() < before.getTime()) scheduleNavDir = 'back';
-            else if (cellDate.getTime() > before.getTime()) scheduleNavDir = 'forward';
-            else scheduleNavDir = null;
             scheduleDate = cellDate;
             calendarViewMonth = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
             updateScheduleDateDisplay();
