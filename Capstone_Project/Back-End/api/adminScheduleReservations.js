@@ -35,14 +35,34 @@ function pythonWeekdayFromYMD(dateStr) {
   return js === 0 ? 6 : js - 1;
 }
 
-function advanceDaysFromToday(dateStr) {
-  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(dateStr);
-  if (!m) return null;
-  const req = new Date(parseInt(m[1], 10), parseInt(m[2], 10) - 1, parseInt(m[3], 10));
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  req.setHours(0, 0, 0, 0);
-  return Math.round((req - today) / 864e5);
+/** Calendar date string YYYY-MM-DD for "today" in US/Central (matches Flask `central_time`). */
+function centralYMDToday() {
+  const d = new Date();
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Chicago',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(d);
+}
+
+/** Whole calendar days from Central "today" to `ymd` (both YYYY-MM-DD). */
+function calendarDaysFromCentralToday(ymd) {
+  const today = centralYMDToday();
+  const m1 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(today);
+  const m2 = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(ymd || '').trim());
+  if (!m1 || !m2) return null;
+  const t0 = Date.UTC(+m1[1], +m1[2] - 1, +m1[3]);
+  const t1 = Date.UTC(+m2[1], +m2[2] - 1, +m2[3]);
+  return Math.round((t1 - t0) / 864e5);
+}
+
+/** Lexicographic compare with `comparisonNowCentral()` — reservation start as Central wall time. */
+function comparisonStartCentral(reservationDate, startHHMM) {
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(startHHMM || '').trim());
+  if (!m) return '';
+  const hh = String(parseInt(m[1], 10)).padStart(2, '0');
+  return `${reservationDate} ${hh}:${m[2]}:00`;
 }
 
 function parseHHMM(hhmm) {
@@ -370,11 +390,30 @@ module.exports = async function handleAdminScheduleReservations(req, res, ctx) {
       return true;
     }
 
-    const adv = advanceDaysFromToday(reservationDate);
-    if (adv == null || adv < 0 || adv > 14) {
+    const adv = calendarDaysFromCentralToday(reservationDate);
+    /** Staff can book farther ahead than customer self-service (14 days in Flask). */
+    const ADMIN_MAX_ADVANCE_DAYS = 730;
+    if (adv == null || adv < 0) {
       sendJson(res, 400, {
         success: false,
-        message: 'Unable to reserve in past or reserve for more than 14 days.',
+        message: 'Cannot reserve on a past calendar date.',
+      });
+      return true;
+    }
+    if (adv > ADMIN_MAX_ADVANCE_DAYS) {
+      sendJson(res, 400, {
+        success: false,
+        message: 'Reservation date is too far in the future.',
+      });
+      return true;
+    }
+
+    const nowCentral = comparisonNowCentral();
+    const startCentral = comparisonStartCentral(reservationDate, startTime);
+    if (startCentral && nowCentral >= startCentral) {
+      sendJson(res, 400, {
+        success: false,
+        message: 'Start time is in the past (US/Central).',
       });
       return true;
     }

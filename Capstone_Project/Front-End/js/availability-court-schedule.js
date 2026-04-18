@@ -29,19 +29,44 @@
     return n === TABLE_TENNIS_COURT_NUMBER;
   }
   /**
-   * UI only (no DB): pending stays orange. Once approved (status 2), the box uses one of 12
-   * palette colors chosen from reservation_id so it looks random but stays the same after refresh.
+   * UI only: pending stays orange. For this day's loaded rows, each confirmed reservation_id gets a
+   * distinct hue (evenly spaced on the wheel) so no two confirmed bookings share the same color.
    */
-  function reservationPaletteClassFromId(reservationId) {
-    var id = parseInt(reservationId, 10);
-    if (!Number.isFinite(id) || id < 0) id = 0;
-    var idx = (id * 7919 + (id % 13)) % 12;
-    return 'res-tone-' + idx;
+  function buildUniqueConfirmedHueMap(reservations) {
+    var ids = [];
+    var seen = Object.create(null);
+    (reservations || []).forEach(function (row) {
+      if (Number(row.reservation_status) === 1) return;
+      var raw = row.reservation_id;
+      if (raw === undefined || raw === null || raw === '') return;
+      var key = String(raw);
+      if (seen[key]) return;
+      seen[key] = true;
+      var id = parseInt(raw, 10);
+      if (!Number.isFinite(id)) id = 0;
+      ids.push(id);
+    });
+    ids.sort(function (a, b) {
+      return a - b;
+    });
+    var n = ids.length;
+    var map = Object.create(null);
+    if (n === 0) return map;
+    ids.forEach(function (rid, index) {
+      map[String(rid)] = (index * (360 / n)) % 360;
+    });
+    return map;
+  }
+
+  function applyReservationUniqueTone(block, hue) {
+    if (!block || hue == null || !Number.isFinite(hue)) return;
+    block.classList.add('cal-block--unique-tone');
+    block.style.setProperty('--res-hue', String(hue));
   }
 
   function visualClassForDbBlock(courtNum, status, reservationId) {
     if (Number(status) === 1) return 'is-orange';
-    return reservationPaletteClassFromId(reservationId);
+    return 'cal-block--unique-tone';
   }
 
   function pad2(n) {
@@ -227,12 +252,20 @@
     block.style.setProperty('--slot-span', String(Math.max(0.5, n)));
   }
 
-  function buildScheduleBlock(row) {
+  function buildScheduleBlock(row, hueMap) {
     var courtNum = row.court_id != null ? parseInt(row.court_id, 10) : null;
     var block = document.createElement('div');
     block.className =
       'cal-block cal-block--db cal-block--public ' +
       visualClassForDbBlock(courtNum, row.reservation_status, row.reservation_id);
+    if (Number(row.reservation_status) !== 1) {
+      var hm = hueMap || {};
+      var h = hm[String(row.reservation_id)];
+      if (h == null || !Number.isFinite(h)) {
+        h = ((parseInt(row.reservation_id, 10) || 0) * 137.508) % 360;
+      }
+      applyReservationUniqueTone(block, h);
+    }
     if (reservationEndedBeforeNow(row)) {
       block.classList.add('cal-block--past');
       block.dataset.reservationPast = '1';
@@ -282,16 +315,17 @@
         calendar.querySelectorAll('.cal-block--db').forEach(function (el) {
           el.remove();
         });
-        if (out.ok && out.data && out.data.success && out.data.reservations) {
-          out.data.reservations.forEach(function (row) {
-            var cid = row.court_id;
-            var col = calendar.querySelector('.cal-col[data-court="Court ' + cid + '"]');
-            if (!col) return;
-            var body = col.querySelector('.cal-col-body');
-            if (!body) return;
-            body.appendChild(buildScheduleBlock(row));
-          });
-        }
+        var reservations =
+          out.ok && out.data && out.data.success && out.data.reservations ? out.data.reservations : [];
+        var hueMap = buildUniqueConfirmedHueMap(reservations);
+        reservations.forEach(function (row) {
+          var cid = row.court_id;
+          var col = calendar.querySelector('.cal-col[data-court="Court ' + cid + '"]');
+          if (!col) return;
+          var body = col.querySelector('.cal-col-body');
+          if (!body) return;
+          body.appendChild(buildScheduleBlock(row, hueMap));
+        });
         refillPubModalTimesIfVisible();
       })
       .catch(function () {});

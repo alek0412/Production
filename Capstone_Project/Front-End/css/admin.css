@@ -4803,14 +4803,34 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
   border-color: #be123c;
 }
 
-/* Confirmed reservations: one of 12 tones from reservation id (distinct blocks on same court). */
-.cal-block[class*='res-tone-'] .cal-block-action-btn {
+/* Confirmed reservations: per-day unique hue (--res-hue) or legacy res-tone-* */
+.cal-block.cal-block--unique-tone {
+  background: linear-gradient(
+    165deg,
+    hsl(var(--res-hue), 78%, 94%) 0%,
+    hsl(var(--res-hue), 58%, 78%) 42%,
+    hsl(var(--res-hue), 52%, 58%) 100%
+  );
+  border-color: hsl(var(--res-hue), 52%, 38%);
+  color: hsl(var(--res-hue), 38%, 16%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 1px 2px rgba(15, 23, 42, 0.14);
+}
+
+.cal-block.cal-block--unique-tone .cal-block-meta {
+  color: hsl(var(--res-hue), 42%, 22%);
+}
+
+.cal-block[class*='res-tone-'] .cal-block-action-btn,
+.cal-block.cal-block--unique-tone .cal-block-action-btn {
   background: rgba(255, 255, 255, 0.7);
   color: inherit;
   border-color: rgba(15, 23, 42, 0.22);
 }
 
-.cal-block[class*='res-tone-'] .cal-block-action-btn:hover {
+.cal-block[class*='res-tone-'] .cal-block-action-btn:hover,
+.cal-block.cal-block--unique-tone .cal-block-action-btn:hover {
   background: #ffffff;
   filter: brightness(1.02);
 }
@@ -5573,13 +5593,34 @@ body[data-theme="dark"] .cal-block.is-orange .cal-block-meta {
   color: #ffe4e6;
 }
 
-body[data-theme="dark"] .cal-block[class*='res-tone-'] .cal-block-action-btn {
+body[data-theme="dark"] .cal-block.cal-block--unique-tone {
+  background: linear-gradient(
+    165deg,
+    hsl(var(--res-hue), 42%, 18%) 0%,
+    hsl(var(--res-hue), 48%, 30%) 45%,
+    hsl(var(--res-hue), 52%, 42%) 100%
+  );
+  border-color: hsl(var(--res-hue), 55%, 58%);
+  color: hsl(var(--res-hue), 15%, 97%);
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.35);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 1px 3px rgba(0, 0, 0, 0.35);
+}
+
+body[data-theme="dark"] .cal-block.cal-block--unique-tone .cal-block-meta {
+  color: hsl(var(--res-hue), 35%, 88%);
+}
+
+body[data-theme="dark"] .cal-block[class*='res-tone-'] .cal-block-action-btn,
+body[data-theme="dark"] .cal-block.cal-block--unique-tone .cal-block-action-btn {
   background: rgba(15, 23, 42, 0.55);
   color: inherit;
   border-color: rgba(255, 255, 255, 0.28);
 }
 
-body[data-theme="dark"] .cal-block[class*='res-tone-'] .cal-block-action-btn:hover {
+body[data-theme="dark"] .cal-block[class*='res-tone-'] .cal-block-action-btn:hover,
+body[data-theme="dark"] .cal-block.cal-block--unique-tone .cal-block-action-btn:hover {
   background: rgba(15, 23, 42, 0.82);
   color: #f8fafc;
 }

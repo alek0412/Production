@@ -441,6 +441,23 @@
         return Math.round((closeMin - scheduleGridBaseMinutes(d)) / 30) + 1;
       }
 
+      /**
+       * Same as customer availability embed: business open, or next 15-min tick after now when the
+       * schedule day is today (so staff cannot pick a start time in the past).
+       */
+      function earliestAdminStartMinutesForScheduleDay(dayDate) {
+        var openM = scheduleGridBaseMinutes(dayDate);
+        var todayMarker = new Date();
+        todayMarker.setHours(12, 0, 0, 0);
+        if (!isSameCalendarDay(dayDate, todayMarker)) {
+          return openM;
+        }
+        var now = new Date();
+        var nowM = now.getHours() * 60 + now.getMinutes();
+        var nextFifteen = Math.ceil((nowM + 1) / 15) * 15;
+        return Math.max(openM, nextFifteen);
+      }
+
       function updateScheduleDateDisplay() {
         if (!resDateWeekday || !resDateFull) return;
         const days = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -475,7 +492,9 @@
         calendarViewMonth = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
         updateScheduleDateDisplay();
         if (miniCalendarOpen) buildMiniCalendarGrid();
-        refreshScheduleFromServer();
+        refreshScheduleFromServer().then(function () {
+          refillAdminBookingFormTimesIfVisible();
+        });
       }
 
       function openMiniCalendar() {
@@ -533,7 +552,9 @@
             calendarViewMonth = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
             updateScheduleDateDisplay();
             closeMiniCalendar();
-            refreshScheduleFromServer();
+            refreshScheduleFromServer().then(function () {
+              refillAdminBookingFormTimesIfVisible();
+            });
           });
           resMiniCalGrid.appendChild(cell);
         }
@@ -672,7 +693,7 @@
        */
       function pickAdminStartTimeFromClick(col, clickTarget, clientY) {
         if (!col) return '';
-        if (clickTarget && clickTarget.closest && clickTarget.closest('.cal-block')) return '';
+        if (clickTarget && clickTarget.closest && clickTarget.closest('.cal-block--db')) return '';
         var body = col.querySelector('.cal-col-body');
         if (!body) return '';
         var rect = body.getBoundingClientRect();
@@ -723,6 +744,7 @@
 
       function openModal(courtName, preferredStartTime12h) {
         if (!overlay) return;
+        refreshAdminBookingFormStartOptions({ preserveSelection: false });
         modalCourtName = String(courtName || '').trim();
         var courtDisplay = document.getElementById('res-modal-court-display');
         var bookingStrip = document.getElementById('res-modal-booking-court');
@@ -740,7 +762,11 @@
           var hasOpt = Array.from(startSelect.options).some(function (o) {
             return o.value === preferredStartTime12h;
           });
-          if (hasOpt) startSelect.value = preferredStartTime12h;
+          if (hasOpt) {
+            startSelect.value = preferredStartTime12h;
+          } else if (startSelect.options.length && !startSelect.options[0].disabled) {
+            startSelect.selectedIndex = 0;
+          }
         }
         updateEndTimeFromForm();
         overlay.classList.remove('is-hidden');
@@ -816,24 +842,56 @@
         return endDt.getTime() < Date.now();
       }
 
-      /** UI only (no DB): approved reservations get a stable pseudo-random color from reservation_id. */
-      function reservationPaletteClassFromId(reservationId) {
-        var id = parseInt(reservationId, 10);
-        if (!Number.isFinite(id) || id < 0) id = 0;
-        var idx = (id * 7919 + (id % 13)) % 12;
-        return 'res-tone-' + idx;
+      function buildUniqueConfirmedHueMap(reservations) {
+        var ids = [];
+        var seen = Object.create(null);
+        (reservations || []).forEach(function (row) {
+          if (Number(row.reservation_status) === 1) return;
+          var raw = row.reservation_id;
+          if (raw === undefined || raw === null || raw === '') return;
+          var key = String(raw);
+          if (seen[key]) return;
+          seen[key] = true;
+          var id = parseInt(raw, 10);
+          if (!Number.isFinite(id)) id = 0;
+          ids.push(id);
+        });
+        ids.sort(function (a, b) {
+          return a - b;
+        });
+        var n = ids.length;
+        var map = Object.create(null);
+        if (n === 0) return map;
+        ids.forEach(function (rid, index) {
+          map[String(rid)] = (index * (360 / n)) % 360;
+        });
+        return map;
+      }
+
+      function applyReservationUniqueTone(block, hue) {
+        if (!block || hue == null || !Number.isFinite(hue)) return;
+        block.classList.add('cal-block--unique-tone');
+        block.style.setProperty('--res-hue', String(hue));
       }
 
       function visualClassForDbBlock(courtNum, status, reservationId) {
         if (Number(status) === 1) return 'is-orange';
-        return reservationPaletteClassFromId(reservationId);
+        return 'cal-block--unique-tone';
       }
 
-      function buildDbReservationBlock(row) {
+      function buildDbReservationBlock(row, hueMap) {
         var courtNum = row.court_id != null ? parseInt(row.court_id, 10) : null;
         var block = document.createElement('div');
         block.className =
           'cal-block cal-block--db ' + visualClassForDbBlock(courtNum, row.reservation_status, row.reservation_id);
+        if (Number(row.reservation_status) !== 1) {
+          var hm = hueMap || {};
+          var h = hm[String(row.reservation_id)];
+          if (h == null || !Number.isFinite(h)) {
+            h = ((parseInt(row.reservation_id, 10) || 0) * 137.508) % 360;
+          }
+          applyReservationUniqueTone(block, h);
+        }
         if (reservationEndedBeforeNow(row)) {
           block.classList.add('cal-block--past');
           block.dataset.reservationPast = '1';
@@ -908,17 +966,20 @@
             calendar.querySelectorAll('.cal-block--db').forEach(function (el) {
               el.remove();
             });
-            (out.data.reservations || []).forEach(function (row) {
+            var reservations = out.data.reservations || [];
+            var hueMap = buildUniqueConfirmedHueMap(reservations);
+            reservations.forEach(function (row) {
               var cid = row.court_id;
               var col = calendar.querySelector('.cal-col[data-court="Court ' + cid + '"]');
               if (!col) return;
               var body = col.querySelector('.cal-col-body');
               if (!body) return;
-              body.appendChild(buildDbReservationBlock(row));
+              body.appendChild(buildDbReservationBlock(row, hueMap));
             });
           })
           .catch(function () {})
           .then(function () {
+            refillAdminBookingFormTimesIfVisible();
             if (typeof loadPendingReservations === 'function') {
               loadPendingReservations();
             }
@@ -1103,13 +1164,24 @@
         endInput.value = formatMinutesAsTime12(sm + len);
       }
  
-      function refreshAdminBookingFormStartOptions() {
+      function refreshAdminBookingFormStartOptions(opts) {
+        opts = opts || {};
+        const preserveSelection = opts.preserveSelection !== false;
         if (!startSelect) return;
-        const prevVal = startSelect.value;
-        const openM = scheduleGridBaseMinutes(scheduleDate);
-        startSelect.innerHTML = '';
+        const prevVal = preserveSelection ? startSelect.value : '';
+        const minM = earliestAdminStartMinutesForScheduleDay(scheduleDate);
         const closeCap = scheduleGridCloseMinutes(scheduleDate);
-        for (let m = openM; m <= closeCap - 15; m += 15) {
+        startSelect.innerHTML = '';
+        if (minM > closeCap - 15) {
+          const dis = document.createElement('option');
+          dis.value = '';
+          dis.disabled = true;
+          dis.textContent = 'No start times available for this day';
+          startSelect.appendChild(dis);
+          if (endInput) endInput.value = '';
+          return;
+        }
+        for (let m = minM; m <= closeCap - 15; m += 15) {
           const opt = document.createElement('option');
           opt.value = formatMinutesAsTime12(m);
           opt.textContent = opt.value;
@@ -1120,16 +1192,16 @@
           startSelect.value = prevVal;
           applied = true;
         }
-        if (!applied) {
-          const target = 14 * 60;
-          const pick = target >= openM && target <= closeCap - 15 ? target : openM;
-          const match = Array.from(startSelect.options).find(function (o) {
-            return parseTimeLabelToMinutes(o.value) === pick;
-          });
-          if (match) startSelect.value = match.value;
-          else if (startSelect.options[0]) startSelect.selectedIndex = 0;
+        if (!applied && startSelect.options.length && !startSelect.options[0].disabled) {
+          startSelect.selectedIndex = 0;
         }
         updateEndTimeFromForm();
+      }
+
+      /** When the booking modal is open, rebuild start/end after schedule refresh or date change (matches public embed). */
+      function refillAdminBookingFormTimesIfVisible() {
+        if (!overlay || overlay.classList.contains('is-hidden')) return;
+        refreshAdminBookingFormStartOptions({ preserveSelection: true });
       }
 
       function initFormTimeControls() {
@@ -1333,6 +1405,15 @@
           if (!selectedClient || !selectedClient.customerId) {
             setStatus('Search and select a client before adding the reservation.', true);
             if (resClientSearchInput) resClientSearchInput.focus();
+            return;
+          }
+
+          if (
+            !startSelect ||
+            !startSelect.value ||
+            (startSelect.options[0] && startSelect.options[0].disabled)
+          ) {
+            setStatus('No valid start times for this day. Pick another date or try later.', true);
             return;
           }
 
