@@ -807,6 +807,9 @@ body[data-theme="light"] .admin-sidebar-toggle:hover {
 
 .admin-content:has(.reservations-page) {
   padding: 0.4rem 1.5rem 1.25rem 0.5rem;
+  /* Let the wide schedule scroll here so court headers can use position:sticky (no overflow-x on inner wrap). */
+  overflow-x: auto;
+  overflow-y: auto;
 }
 
 /* Center page title in the middle of the main content area */
@@ -3926,13 +3929,9 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
-/*
- * Admin Reservations: horizontal scroll only — avoid overflow-y becoming a scrollport (browser quirk
- * when overflow-x is auto), which breaks position:sticky court headers on .admin-content.
- */
+/* Admin: do not create a horizontal scrollport here — it breaks sticky court headers; .admin-content scrolls x. */
 .admin-main:has(.reservations-page) .reservations-schedule-outer {
-  overflow-x: auto;
-  overflow-y: clip;
+  overflow: visible;
 }
 
 .reservations-schedule-outer.res-schedule-outer--other-day {
