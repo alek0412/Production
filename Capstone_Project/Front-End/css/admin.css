@@ -4803,6 +4803,138 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
   border-color: #be123c;
 }
 
+/* Confirmed reservations: one of 12 tones from reservation id (distinct blocks on same court). */
+.cal-block[class*='res-tone-'] .cal-block-action-btn {
+  background: rgba(255, 255, 255, 0.7);
+  color: inherit;
+  border-color: rgba(15, 23, 42, 0.22);
+}
+
+.cal-block[class*='res-tone-'] .cal-block-action-btn:hover {
+  background: #ffffff;
+  filter: brightness(1.02);
+}
+
+.cal-block.res-tone-0 {
+  background: linear-gradient(165deg, #eef2ff 0%, #c7d2fe 42%, #818cf8 100%);
+  border-color: #4338ca;
+  color: #1e1b4b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(67, 56, 202, 0.14);
+}
+.cal-block.res-tone-0 .cal-block-meta {
+  color: #312e81;
+}
+
+.cal-block.res-tone-1 {
+  background: linear-gradient(165deg, #f0fdfa 0%, #99f6e4 38%, #2dd4bf 100%);
+  border-color: #0d9488;
+  color: #134e4a;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(13, 148, 136, 0.14);
+}
+.cal-block.res-tone-1 .cal-block-meta {
+  color: #115e59;
+}
+
+.cal-block.res-tone-2 {
+  background: linear-gradient(165deg, #faf5ff 0%, #e9d5ff 40%, #a78bfa 100%);
+  border-color: #6d28d9;
+  color: #4c1d95;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(109, 40, 217, 0.14);
+}
+.cal-block.res-tone-2 .cal-block-meta {
+  color: #5b21b6;
+}
+
+.cal-block.res-tone-3 {
+  background: linear-gradient(165deg, #fff1f2 0%, #fecdd3 38%, #fb7185 100%);
+  border-color: #e11d48;
+  color: #881337;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(225, 29, 72, 0.12);
+}
+.cal-block.res-tone-3 .cal-block-meta {
+  color: #9f1239;
+}
+
+.cal-block.res-tone-4 {
+  background: linear-gradient(165deg, #fffbeb 0%, #fde68a 38%, #fbbf24 100%);
+  border-color: #d97706;
+  color: #78350f;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(217, 119, 6, 0.14);
+}
+.cal-block.res-tone-4 .cal-block-meta {
+  color: #92400e;
+}
+
+.cal-block.res-tone-5 {
+  background: linear-gradient(165deg, #ecfdf5 0%, #a7f3d0 40%, #34d399 100%);
+  border-color: #059669;
+  color: #064e3b;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(5, 150, 105, 0.14);
+}
+.cal-block.res-tone-5 .cal-block-meta {
+  color: #047857;
+}
+
+.cal-block.res-tone-6 {
+  background: linear-gradient(165deg, #ecfeff 0%, #a5f3fc 40%, #22d3ee 100%);
+  border-color: #0891b2;
+  color: #164e63;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(8, 145, 178, 0.14);
+}
+.cal-block.res-tone-6 .cal-block-meta {
+  color: #155e75;
+}
+
+.cal-block.res-tone-7 {
+  background: linear-gradient(165deg, #fdf4ff 0%, #f0abfc 38%, #e879f9 100%);
+  border-color: #c026d3;
+  color: #701a75;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(192, 38, 211, 0.12);
+}
+.cal-block.res-tone-7 .cal-block-meta {
+  color: #86198f;
+}
+
+.cal-block.res-tone-8 {
+  background: linear-gradient(165deg, #f7fee7 0%, #d9f99d 40%, #84cc16 100%);
+  border-color: #65a30d;
+  color: #365314;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(101, 163, 13, 0.14);
+}
+.cal-block.res-tone-8 .cal-block-meta {
+  color: #3f6212;
+}
+
+.cal-block.res-tone-9 {
+  background: linear-gradient(165deg, #f0f9ff 0%, #bae6fd 42%, #38bdf8 100%);
+  border-color: #0284c7;
+  color: #0c4a6e;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(2, 132, 199, 0.14);
+}
+.cal-block.res-tone-9 .cal-block-meta {
+  color: #075985;
+}
+
+.cal-block.res-tone-10 {
+  background: linear-gradient(165deg, #fdf2f8 0%, #fbcfe8 40%, #f472b6 100%);
+  border-color: #db2777;
+  color: #831843;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(219, 39, 119, 0.12);
+}
+.cal-block.res-tone-10 .cal-block-meta {
+  color: #9d174d;
+}
+
+.cal-block.res-tone-11 {
+  background: linear-gradient(165deg, #fff7ed 0%, #fed7aa 38%, #fb923c 100%);
+  border-color: #ea580c;
+  color: #7c2d12;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 1px 2px rgba(234, 88, 12, 0.14);
+}
+.cal-block.res-tone-11 .cal-block-meta {
+  color: #9a3412;
+}
+
 /* Badminton / all-day blocks — cool neutral slate */
 .cal-block.is-white {
   background: linear-gradient(165deg, #f8fafc 0%, #e2e8f0 55%, #cbd5e1 100%);
@@ -5439,6 +5571,126 @@ body[data-theme="dark"] .cal-block.is-orange {
 
 body[data-theme="dark"] .cal-block.is-orange .cal-block-meta {
   color: #ffe4e6;
+}
+
+body[data-theme="dark"] .cal-block[class*='res-tone-'] .cal-block-action-btn {
+  background: rgba(15, 23, 42, 0.55);
+  color: inherit;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+body[data-theme="dark"] .cal-block[class*='res-tone-'] .cal-block-action-btn:hover {
+  background: rgba(15, 23, 42, 0.82);
+  color: #f8fafc;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-0 {
+  background: linear-gradient(165deg, #1e1b4b 0%, #4338ca 55%, #6366f1 100%);
+  border-color: #a5b4fc;
+  color: #eef2ff;
+  text-shadow: 0 1px 1px rgba(15, 23, 42, 0.4);
+}
+body[data-theme="dark"] .cal-block.res-tone-0 .cal-block-meta {
+  color: #c7d2fe;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-1 {
+  background: linear-gradient(165deg, #042f2e 0%, #0d9488 50%, #14b8a6 100%);
+  border-color: #5eead4;
+  color: #f0fdfa;
+}
+body[data-theme="dark"] .cal-block.res-tone-1 .cal-block-meta {
+  color: #ccfbf1;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-2 {
+  background: linear-gradient(165deg, #3b0764 0%, #7c3aed 50%, #a78bfa 100%);
+  border-color: #c4b5fd;
+  color: #faf5ff;
+}
+body[data-theme="dark"] .cal-block.res-tone-2 .cal-block-meta {
+  color: #e9d5ff;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-3 {
+  background: linear-gradient(165deg, #831843 0%, #e11d48 50%, #fb7185 100%);
+  border-color: #fda4af;
+  color: #fff1f2;
+}
+body[data-theme="dark"] .cal-block.res-tone-3 .cal-block-meta {
+  color: #ffe4e6;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-4 {
+  background: linear-gradient(165deg, #78350f 0%, #d97706 50%, #fbbf24 100%);
+  border-color: #fde68a;
+  color: #fffbeb;
+}
+body[data-theme="dark"] .cal-block.res-tone-4 .cal-block-meta {
+  color: #fef3c7;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-5 {
+  background: linear-gradient(165deg, #064e3b 0%, #059669 50%, #34d399 100%);
+  border-color: #6ee7b7;
+  color: #ecfdf5;
+}
+body[data-theme="dark"] .cal-block.res-tone-5 .cal-block-meta {
+  color: #d1fae5;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-6 {
+  background: linear-gradient(165deg, #164e63 0%, #0891b2 50%, #22d3ee 100%);
+  border-color: #a5f3fc;
+  color: #ecfeff;
+}
+body[data-theme="dark"] .cal-block.res-tone-6 .cal-block-meta {
+  color: #cffafe;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-7 {
+  background: linear-gradient(165deg, #701a75 0%, #c026d3 50%, #e879f9 100%);
+  border-color: #f0abfc;
+  color: #fdf4ff;
+}
+body[data-theme="dark"] .cal-block.res-tone-7 .cal-block-meta {
+  color: #fae8ff;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-8 {
+  background: linear-gradient(165deg, #365314 0%, #65a30d 50%, #a3e635 100%);
+  border-color: #d9f99d;
+  color: #f7fee7;
+}
+body[data-theme="dark"] .cal-block.res-tone-8 .cal-block-meta {
+  color: #ecfccb;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-9 {
+  background: linear-gradient(165deg, #0c4a6e 0%, #0284c7 50%, #38bdf8 100%);
+  border-color: #7dd3fc;
+  color: #f0f9ff;
+}
+body[data-theme="dark"] .cal-block.res-tone-9 .cal-block-meta {
+  color: #e0f2fe;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-10 {
+  background: linear-gradient(165deg, #831843 0%, #db2777 50%, #f472b6 100%);
+  border-color: #fbcfe8;
+  color: #fdf2f8;
+}
+body[data-theme="dark"] .cal-block.res-tone-10 .cal-block-meta {
+  color: #fce7f3;
+}
+
+body[data-theme="dark"] .cal-block.res-tone-11 {
+  background: linear-gradient(165deg, #7c2d12 0%, #ea580c 50%, #fb923c 100%);
+  border-color: #fed7aa;
+  color: #fff7ed;
+}
+body[data-theme="dark"] .cal-block.res-tone-11 .cal-block-meta {
+  color: #ffedd5;
 }
 
 body[data-theme="dark"] .cal-block.is-white {

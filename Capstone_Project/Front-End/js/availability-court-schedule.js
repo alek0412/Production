@@ -28,13 +28,20 @@
   function isTableTennisCourtNumber(n) {
     return n === TABLE_TENNIS_COURT_NUMBER;
   }
-  /** Match Admin_Reservations.html: pending = orange; confirmed uses court-type colors. */
-  function visualClassForDbBlock(courtNum, status) {
-    var pending = Number(status) === 1;
-    if (pending) return 'is-orange';
-    if (isPickleballCourtNumber(courtNum)) return 'is-event';
-    if (isTableTennisCourtNumber(courtNum)) return 'is-table-tennis';
-    return 'is-blue';
+  /**
+   * UI only (no DB): pending stays orange. Once approved (status 2), the box uses one of 12
+   * palette colors chosen from reservation_id so it looks random but stays the same after refresh.
+   */
+  function reservationPaletteClassFromId(reservationId) {
+    var id = parseInt(reservationId, 10);
+    if (!Number.isFinite(id) || id < 0) id = 0;
+    var idx = (id * 7919 + (id % 13)) % 12;
+    return 'res-tone-' + idx;
+  }
+
+  function visualClassForDbBlock(courtNum, status, reservationId) {
+    if (Number(status) === 1) return 'is-orange';
+    return reservationPaletteClassFromId(reservationId);
   }
 
   function pad2(n) {
@@ -224,7 +231,8 @@
     var courtNum = row.court_id != null ? parseInt(row.court_id, 10) : null;
     var block = document.createElement('div');
     block.className =
-      'cal-block cal-block--db cal-block--public ' + visualClassForDbBlock(courtNum, row.reservation_status);
+      'cal-block cal-block--db cal-block--public ' +
+      visualClassForDbBlock(courtNum, row.reservation_status, row.reservation_id);
     if (reservationEndedBeforeNow(row)) {
       block.classList.add('cal-block--past');
       block.dataset.reservationPast = '1';

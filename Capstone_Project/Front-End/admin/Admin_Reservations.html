@@ -816,18 +816,24 @@
         return endDt.getTime() < Date.now();
       }
 
-      function visualClassForDbBlock(courtNum, status) {
-        var pending = Number(status) === 1;
-        if (pending) return 'is-orange';
-        if (isPickleballCourtNumber(courtNum)) return 'is-event';
-        if (isTableTennisCourtNumber(courtNum)) return 'is-table-tennis';
-        return 'is-blue';
+      /** UI only (no DB): approved reservations get a stable pseudo-random color from reservation_id. */
+      function reservationPaletteClassFromId(reservationId) {
+        var id = parseInt(reservationId, 10);
+        if (!Number.isFinite(id) || id < 0) id = 0;
+        var idx = (id * 7919 + (id % 13)) % 12;
+        return 'res-tone-' + idx;
+      }
+
+      function visualClassForDbBlock(courtNum, status, reservationId) {
+        if (Number(status) === 1) return 'is-orange';
+        return reservationPaletteClassFromId(reservationId);
       }
 
       function buildDbReservationBlock(row) {
         var courtNum = row.court_id != null ? parseInt(row.court_id, 10) : null;
         var block = document.createElement('div');
-        block.className = 'cal-block cal-block--db ' + visualClassForDbBlock(courtNum, row.reservation_status);
+        block.className =
+          'cal-block cal-block--db ' + visualClassForDbBlock(courtNum, row.reservation_status, row.reservation_id);
         if (reservationEndedBeforeNow(row)) {
           block.classList.add('cal-block--past');
           block.dataset.reservationPast = '1';
