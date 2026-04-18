@@ -404,19 +404,20 @@
     var today = new Date();
     today.setHours(12, 0, 0, 0);
     var isToday = isSameCalendarDay(scheduleDate, today);
+    if (isToday) scheduleNavDir = null;
     wk.textContent = days[scheduleDate.getDay()] + (isToday ? ' · Today' : '');
     full.textContent =
       months[scheduleDate.getMonth()] + ' ' + scheduleDate.getDate() + ', ' + scheduleDate.getFullYear();
     full.setAttribute('datetime', formatScheduleDateIso(scheduleDate));
     if (toolbar) {
       toolbar.classList.toggle('res-date-toolbar--today', isToday);
-      toolbar.classList.toggle('res-date-toolbar--nav-back', scheduleNavDir === 'back');
-      toolbar.classList.toggle('res-date-toolbar--nav-forward', scheduleNavDir === 'forward');
+      toolbar.classList.toggle('res-date-toolbar--nav-back', !isToday && scheduleNavDir === 'back');
+      toolbar.classList.toggle('res-date-toolbar--nav-forward', !isToday && scheduleNavDir === 'forward');
     }
     if (outer) {
       outer.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
-      outer.classList.toggle('res-schedule-outer--nav-back', scheduleNavDir === 'back');
-      outer.classList.toggle('res-schedule-outer--nav-forward', scheduleNavDir === 'forward');
+      outer.classList.toggle('res-schedule-outer--nav-back', !isToday && scheduleNavDir === 'back');
+      outer.classList.toggle('res-schedule-outer--nav-forward', !isToday && scheduleNavDir === 'forward');
     }
     applyPublicScheduleGridLayout();
   }

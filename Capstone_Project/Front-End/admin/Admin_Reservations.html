@@ -470,6 +470,7 @@
         const today = new Date();
         today.setHours(12, 0, 0, 0);
         const isToday = isSameCalendarDay(scheduleDate, today);
+        if (isToday) scheduleNavDir = null;
         resDateWeekday.textContent = days[scheduleDate.getDay()] + (isToday ? ' · Today' : '');
         resDateFull.textContent =
           months[scheduleDate.getMonth()] + ' ' + scheduleDate.getDate() + ', ' + scheduleDate.getFullYear();
@@ -477,15 +478,15 @@
 
         if (resDateToolbar) {
           resDateToolbar.classList.toggle('res-date-toolbar--today', isToday);
-          const back = scheduleNavDir === 'back';
-          const fwd = scheduleNavDir === 'forward';
+          const back = !isToday && scheduleNavDir === 'back';
+          const fwd = !isToday && scheduleNavDir === 'forward';
           resDateToolbar.classList.toggle('res-date-toolbar--nav-back', back);
           resDateToolbar.classList.toggle('res-date-toolbar--nav-forward', fwd);
         }
         if (resScheduleOuter) {
           resScheduleOuter.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
-          resScheduleOuter.classList.toggle('res-schedule-outer--nav-back', scheduleNavDir === 'back');
-          resScheduleOuter.classList.toggle('res-schedule-outer--nav-forward', scheduleNavDir === 'forward');
+          resScheduleOuter.classList.toggle('res-schedule-outer--nav-back', !isToday && scheduleNavDir === 'back');
+          resScheduleOuter.classList.toggle('res-schedule-outer--nav-forward', !isToday && scheduleNavDir === 'forward');
         }
         updateScheduleGridLayoutForDate();
       }
