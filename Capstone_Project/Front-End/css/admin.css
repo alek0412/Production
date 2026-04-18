@@ -3668,29 +3668,6 @@ body:has(.reservations-page) #gh-back-top {
   white-space: nowrap;
 }
 
-.res-clear-day-btn {
-  font-family: inherit;
-  font-size: 0.78rem;
-  font-weight: 600;
-  padding: 0.4rem 0.65rem;
-  border-radius: 8px;
-  border: 1px solid #b45309;
-  background: #fffbeb;
-  color: #92400e;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.res-clear-day-btn:hover {
-  background: #fef3c7;
-  border-color: #d97706;
-}
-
-.res-clear-day-btn:disabled {
-  opacity: 0.55;
-  cursor: not-allowed;
-}
-
 .res-pending-dropdown {
   position: absolute;
   right: 0;
@@ -5212,16 +5189,6 @@ body[data-theme="dark"] .res-pending-item-meta {
 
 body[data-theme="dark"] .res-pending-empty {
   color: #94a3b8;
-}
-
-body[data-theme="dark"] .res-clear-day-btn {
-  background: #422006;
-  border-color: #d97706;
-  color: #fde68a;
-}
-
-body[data-theme="dark"] .res-clear-day-btn:hover {
-  background: #78350f;
 }
 
 body[data-theme="dark"] .res-mini-calendar-root {

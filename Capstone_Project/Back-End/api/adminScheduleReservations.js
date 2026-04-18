@@ -1,5 +1,5 @@
 /**
- * Admin schedule: list / cancel / clear-day / create reservation for a customer (MySQL).
+ * Admin schedule: list / cancel / create reservation for a customer (MySQL).
  * Active calendar: reservation_status 1 (pending) and 2 (approved).
  * Cancel sets reservation_status = 4 (canceled) — rows are kept for history.
  *
@@ -182,15 +182,11 @@ module.exports = async function handleAdminScheduleReservations(req, res, ctx) {
   const isDelete =
     req.method === 'DELETE' &&
     (pathname === '/api/admin/schedule-reservations' || pathname === '/api/admin/schedule-reservations/');
-  const isClearDay =
-    req.method === 'POST' &&
-    (pathname === '/api/admin/schedule-reservations/clear-day' ||
-      pathname === '/api/admin/schedule-reservations/clear-day/');
   const isCreate =
     req.method === 'POST' &&
     (pathname === '/api/admin/reservation-create' || pathname === '/api/admin/reservation-create/');
 
-  if (!isGet && !isDelete && !isClearDay && !isCreate) {
+  if (!isGet && !isDelete && !isCreate) {
     return false;
   }
 
@@ -294,61 +290,6 @@ module.exports = async function handleAdminScheduleReservations(req, res, ctx) {
       } catch (_) {}
       console.error('[admin schedule-reservations DELETE]', e.message);
       sendJson(res, 503, { success: false, message: 'Unable to cancel reservation' });
-    } finally {
-      conn.release();
-    }
-    return true;
-  }
-
-  if (isClearDay) {
-    let body = {};
-    try {
-      body = await parseBody(req);
-    } catch (e) {
-      sendJson(res, 400, { success: false, message: 'Invalid request body' });
-      return true;
-    }
-    const dateStr = String(body.date || '').trim();
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
-      sendJson(res, 400, { success: false, message: 'Body "date" must be YYYY-MM-DD' });
-      return true;
-    }
-    const employeeIdRaw = getCookie(req, 'admin_employee_id');
-    const employeeId = employeeIdRaw != null && employeeIdRaw !== '' ? parseInt(employeeIdRaw, 10) : NaN;
-    if (!Number.isFinite(employeeId)) {
-      sendJson(res, 401, {
-        success: false,
-        message: 'Sign out and sign in again to cancel reservations.',
-      });
-      return true;
-    }
-    const conn = await db.getClient();
-    try {
-      await conn.beginTransaction();
-      const [rlist] = await conn.execute(
-        'SELECT reservation_id, customer_id FROM reservation WHERE reservation_date = ? AND reservation_status IN (1, 2)',
-        [dateStr]
-      );
-      for (let i = 0; i < rlist.length; i++) {
-        const row = rlist[i];
-        await conn.execute(
-          'UPDATE reservation SET reservation_status = 4, employee_id = ? WHERE reservation_id = ?',
-          [employeeId, row.reservation_id]
-        );
-        await restoreBookingEligibilityIfNoActiveReservations(conn, row.customer_id);
-      }
-      await conn.commit();
-      sendJson(res, 200, {
-        success: true,
-        canceled: rlist.length,
-        date: dateStr,
-      });
-    } catch (e) {
-      try {
-        await conn.rollback();
-      } catch (_) {}
-      console.error('[admin schedule-reservations clear-day]', e.message);
-      sendJson(res, 503, { success: false, message: 'Unable to cancel reservations for this day' });
     } finally {
       conn.release();
     }
