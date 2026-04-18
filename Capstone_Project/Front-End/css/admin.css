@@ -3945,11 +3945,15 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   /* Half-hour row: tall enough for name + time + status + action icons in one 30-min cell */
   --slot-height: 66px;
   --slot-count: 28;
+  /* One source of truth so court headers line up with calendar columns (gap, pad, column width) */
+  --res-schedule-gap: 0.22rem;
+  --res-schedule-h-pad: 0.32rem;
+  --res-schedule-col: minmax(98px, 1fr);
   min-width: 1230px;
   display: grid;
   grid-template-columns: 86px 1fr;
   grid-template-rows: auto 1fr;
-  gap: 0.22rem;
+  gap: var(--res-schedule-gap);
   align-items: stretch;
 }
 
@@ -3962,26 +3966,37 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   --slot-count: 30;
 }
 
+/* Top-left grid cell: keeps column alignment; no visible grey panel */
+.res-schedule-corner {
+  grid-column: 1;
+  grid-row: 1;
+  min-height: 1.65rem;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  box-shadow: none;
+  pointer-events: none;
+}
+
 .res-schedule-headers {
-  grid-column: 1 / -1;
+  grid-column: 2;
   grid-row: 1;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(98px, 1fr);
-  gap: 0.22rem;
+  grid-auto-columns: var(--res-schedule-col);
+  gap: var(--res-schedule-gap);
   align-items: stretch;
+  padding: 0 var(--res-schedule-h-pad);
+  box-sizing: border-box;
 }
 
-/* Admin Reservations: court labels stay visible while .admin-content scrolls */
+/* Admin Reservations: court labels + corner row stay visible while .admin-content scrolls */
+.admin-main:has(.reservations-page) .res-schedule-corner,
 .admin-main:has(.reservations-page) .res-schedule-headers {
   position: sticky;
   top: 0;
   z-index: 30;
   align-self: start;
-}
-
-.admin-main:has(.reservations-page) .res-schedule-headers {
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.18);
 }
 
 .res-schedule-headers .cal-col-head {
@@ -4062,6 +4077,11 @@ body[data-theme='dark'] .admin-nav-pending-badge {
 .cal-col-add-btn:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 2px;
+}
+
+body[data-theme="light"] .res-schedule-corner {
+  background: transparent;
+  border: none;
 }
 
 body[data-theme="light"] .res-schedule-headers .cal-col-head {
@@ -4571,13 +4591,15 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
   border: 1px solid #7a7a7a;
   border-radius: 8px;
   /* Top padding 0 so .cal-col-body lines up with .reservations-time-scale (same slot rows). */
-  padding: 0 0.32rem 0.42rem;
+  padding: 0 var(--res-schedule-h-pad) 0.42rem;
   display: grid;
   grid-auto-flow: column;
-  grid-auto-columns: minmax(98px, 1fr);
-  gap: 0.22rem;
-  overflow-x: auto;
+  grid-auto-columns: var(--res-schedule-col);
+  gap: var(--res-schedule-gap);
+  /* Scroll the admin content (.admin-content), not this row — inner scrollbar shrinks columns vs headers */
+  overflow-x: visible;
   align-items: start;
+  min-width: 0;
 }
 
 .cal-col {
@@ -5518,6 +5540,11 @@ body[data-theme="dark"] .res-field-hint {
 body[data-theme="dark"] .reservations-calendar {
   background: #0f172a;
   border-color: #475569;
+}
+
+body[data-theme="dark"] .res-schedule-corner {
+  background: transparent;
+  border: none;
 }
 
 body[data-theme="dark"] .res-schedule-headers .cal-col-head {

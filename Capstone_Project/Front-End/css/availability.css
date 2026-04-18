@@ -349,7 +349,12 @@
   min-width: 1320px;
 }
 
-/* Keep time labels and court rows on the same Y origin (admin default adds top padding). */
+/* Same column tokens as admin; no horizontal inset on the embed. */
+.availability-page .public-res-embed .reservations-schedule-wrap {
+  --res-schedule-h-pad: 0;
+}
+
+/* Keep time labels and court rows on the same Y origin (admin default adds bottom padding). */
 .availability-page .public-res-embed .reservations-calendar {
   padding: 0;
 }
@@ -577,6 +582,13 @@
   }
 
   /* Keep court header boxes visible while scrolling time slots on phones. */
+  .availability-page .public-res-embed .res-schedule-corner {
+    position: sticky;
+    top: 0;
+    left: 0;
+    z-index: 18;
+  }
+
   .availability-page .public-res-embed .res-schedule-headers {
     position: sticky;
     top: 0;
@@ -593,15 +605,10 @@
 
   .availability-page .public-res-embed .reservations-schedule-wrap {
     --slot-height: 56px;
+    --res-schedule-gap: 0.18rem;
+    --res-schedule-col: minmax(72px, 1fr);
     min-width: 960px;
     grid-template-columns: 62px 1fr;
-    gap: 0.2rem;
-  }
-
-  .availability-page .public-res-embed .res-schedule-headers,
-  .availability-page .public-res-embed .reservations-calendar {
-    grid-auto-columns: minmax(72px, 1fr);
-    gap: 0.18rem;
   }
 
   .availability-page .public-res-embed .res-schedule-headers .cal-col-head {

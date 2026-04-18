@@ -108,6 +108,7 @@
     '</div>' +
     '<div class="reservations-schedule-outer" id="pub-res-schedule-outer">' +
     '<div class="reservations-schedule-wrap">' +
+    '<div class="res-schedule-corner" aria-hidden="true"></div>' +
     '<div class="res-schedule-headers" id="pub-res-schedule-headers">' +
     [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
       .map(function (n) {
