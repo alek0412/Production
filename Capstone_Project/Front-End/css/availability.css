@@ -599,7 +599,7 @@
   }
 
   .availability-page .public-res-embed .reservations-schedule-wrap {
-    --slot-height: 24px;
+    --slot-height: 56px;
     min-width: 960px;
     grid-template-columns: 62px 1fr;
     gap: 0.2rem;

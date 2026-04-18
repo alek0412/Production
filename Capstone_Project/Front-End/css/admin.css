@@ -3934,7 +3934,8 @@ body[data-theme='dark'] .admin-nav-pending-badge {
 }
 
 .reservations-schedule-wrap {
-  --slot-height: 28px;
+  /* Half-hour row: tall enough for name + time + status + action icons in one 30-min cell */
+  --slot-height: 66px;
   --slot-count: 28;
   min-width: 1230px;
   display: grid;
@@ -4584,6 +4585,8 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
 
 .cal-col-body {
   position: relative;
+  /* Inherit from .reservations-schedule-wrap so .cal-block height/top match the grid */
+  --slot-height: inherit;
   height: calc(var(--slot-height) * var(--slot-count));
   background-color: #bdbdbd;
   background-image: repeating-linear-gradient(
@@ -4609,16 +4612,23 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
   position: absolute;
   left: 2px;
   right: 2px;
-  top: calc(var(--slot-start) * var(--slot-height));
-  height: calc(var(--slot-span) * var(--slot-height) - 2px);
-  /* Short bookings (e.g. 15 min) need a floor so text/past styling does not read as “gone”. */
-  min-height: 1.5rem;
+  top: calc(var(--slot-start) * var(--slot-height, 66px));
+  /* Fallback 66px matches grid; min ~54px helps very short fractional spans without blowing past one row on mobile */
+  height: max(
+    3.35rem,
+    calc(var(--slot-span, 1) * var(--slot-height, 66px) - 2px)
+  );
   box-sizing: border-box;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: stretch;
+  gap: 0.08rem;
   z-index: 2;
   border-radius: 3px;
-  line-height: 1.2;
-  padding: 0.2rem 0.24rem;
+  line-height: 1.25;
+  padding: 0.24rem 0.28rem;
   border: 1px solid #506f99;
   color: #111827;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
@@ -4647,7 +4657,7 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
 
 /* Always visible on admin schedule blocks so staff can edit/delete without hunting for hover. */
 .cal-block:has(.cal-block-actions) {
-  overflow: visible;
+  overflow: hidden;
   z-index: 3;
 }
 
@@ -4727,15 +4737,18 @@ body[data-theme="light"] .res-schedule-headers .cal-col-head {
 }
 
 .cal-block-title {
-  font-size: 0.55rem;
+  font-size: 0.62rem;
   font-weight: 700;
   letter-spacing: 0.01em;
+  line-height: 1.2;
+  word-break: break-word;
 }
 
 .cal-block-meta {
-  margin-top: 0.04rem;
-  font-size: 0.5rem;
+  margin-top: 0;
+  font-size: 0.54rem;
   font-weight: 500;
+  line-height: 1.2;
   opacity: 0.95;
 }
 
