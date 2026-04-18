@@ -3962,17 +3962,8 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   --slot-count: 30;
 }
 
-.res-schedule-corner {
-  grid-column: 1;
-  grid-row: 1;
-  min-height: 1.65rem;
-  background: #6b6b6b;
-  border: 1px solid #5a5a5a;
-  border-radius: 2px;
-}
-
 .res-schedule-headers {
-  grid-column: 2;
+  grid-column: 1 / -1;
   grid-row: 1;
   display: grid;
   grid-auto-flow: column;
@@ -3981,8 +3972,7 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   align-items: stretch;
 }
 
-/* Admin Reservations: court labels + corner stay visible while .admin-content scrolls */
-.admin-main:has(.reservations-page) .res-schedule-corner,
+/* Admin Reservations: court labels stay visible while .admin-content scrolls */
 .admin-main:has(.reservations-page) .res-schedule-headers {
   position: sticky;
   top: 0;
@@ -4072,11 +4062,6 @@ body[data-theme='dark'] .admin-nav-pending-badge {
 .cal-col-add-btn:focus-visible {
   outline: 2px solid #93c5fd;
   outline-offset: 2px;
-}
-
-body[data-theme="light"] .res-schedule-corner {
-  background: #e5e7eb;
-  border-color: #d1d5db;
 }
 
 body[data-theme="light"] .res-schedule-headers .cal-col-head {
@@ -5533,11 +5518,6 @@ body[data-theme="dark"] .res-field-hint {
 body[data-theme="dark"] .reservations-calendar {
   background: #0f172a;
   border-color: #475569;
-}
-
-body[data-theme="dark"] .res-schedule-corner {
-  background: #1e293b;
-  border-color: #64748b;
 }
 
 body[data-theme="dark"] .res-schedule-headers .cal-col-head {

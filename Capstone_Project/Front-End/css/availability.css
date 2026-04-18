@@ -577,13 +577,6 @@
   }
 
   /* Keep court header boxes visible while scrolling time slots on phones. */
-  .availability-page .public-res-embed .res-schedule-corner {
-    position: sticky;
-    top: 0;
-    left: 0;
-    z-index: 18;
-  }
-
   .availability-page .public-res-embed .res-schedule-headers {
     position: sticky;
     top: 0;
