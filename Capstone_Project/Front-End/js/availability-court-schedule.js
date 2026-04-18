@@ -17,6 +17,8 @@
     'Thank you for reserving. If you need to cancel, call 346-229-4921.';
   var scheduleDate = new Date();
   scheduleDate.setHours(12, 0, 0, 0);
+  /** 'back' | 'forward' | null — blue vs green date chrome after prev/next */
+  var scheduleNavDir = null;
 
   var PICKLEBALL_COURT_NUMBERS = [2, 4, 6, 8, 10];
   var TABLE_TENNIS_COURT_NUMBER = 11;
@@ -407,12 +409,14 @@
       months[scheduleDate.getMonth()] + ' ' + scheduleDate.getDate() + ', ' + scheduleDate.getFullYear();
     full.setAttribute('datetime', formatScheduleDateIso(scheduleDate));
     if (toolbar) {
-      toolbar.classList.toggle('res-date-toolbar--other-day', !isToday);
       toolbar.classList.toggle('res-date-toolbar--today', isToday);
+      toolbar.classList.toggle('res-date-toolbar--nav-back', scheduleNavDir === 'back');
+      toolbar.classList.toggle('res-date-toolbar--nav-forward', scheduleNavDir === 'forward');
     }
     if (outer) {
       outer.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
-      outer.classList.toggle('res-schedule-outer--other-day', !isToday);
+      outer.classList.toggle('res-schedule-outer--nav-back', scheduleNavDir === 'back');
+      outer.classList.toggle('res-schedule-outer--nav-forward', scheduleNavDir === 'forward');
     }
     applyPublicScheduleGridLayout();
   }
@@ -861,6 +865,7 @@
   var next = document.getElementById('pub-res-date-next');
   if (prev)
     prev.addEventListener('click', function () {
+      scheduleNavDir = 'back';
       var d = new Date(scheduleDate.getTime());
       d.setDate(d.getDate() - 1);
       scheduleDate = d;
@@ -870,6 +875,7 @@
     });
   if (next)
     next.addEventListener('click', function () {
+      scheduleNavDir = 'forward';
       var d = new Date(scheduleDate.getTime());
       d.setDate(d.getDate() + 1);
       scheduleDate = d;

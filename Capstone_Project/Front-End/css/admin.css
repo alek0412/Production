@@ -3535,10 +3535,17 @@ body:has(.reservations-page) #gh-back-top {
   margin-bottom: 0.2rem;
 }
 
-.res-date-toolbar.res-date-toolbar--other-day {
-  border-color: #f59e0b;
-  background: linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%);
-  box-shadow: inset 4px 0 0 #f59e0b;
+/* Prev-day navigation: blue · next-day: green (see scheduleNavDir in JS) */
+.res-date-toolbar.res-date-toolbar--nav-back {
+  border-color: #3b82f6;
+  background: linear-gradient(180deg, #eff6ff 0%, #dbeafe 100%);
+  box-shadow: inset 4px 0 0 #2563eb;
+}
+
+.res-date-toolbar.res-date-toolbar--nav-forward {
+  border-color: #22c55e;
+  background: linear-gradient(180deg, #f0fdf4 0%, #dcfce7 100%);
+  box-shadow: inset 4px 0 0 #16a34a;
 }
 
 .res-date-nav {
@@ -3929,16 +3936,23 @@ body[data-theme='dark'] .admin-nav-pending-badge {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
+.reservations-schedule-outer.res-schedule-outer--nav-back {
+  border-color: #3b82f6;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 1px rgba(37, 99, 235, 0.35);
+}
+
+.reservations-schedule-outer.res-schedule-outer--nav-forward {
+  border-color: #22c55e;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 0 0 1px rgba(22, 163, 74, 0.35);
+}
+
 /* Admin: do not create a horizontal scrollport here — it breaks sticky court headers; .admin-content scrolls x. */
 .admin-main:has(.reservations-page) .reservations-schedule-outer {
   overflow: visible;
-}
-
-.reservations-schedule-outer.res-schedule-outer--other-day {
-  border-color: #f59e0b;
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    0 0 0 1px rgba(245, 158, 11, 0.35);
 }
 
 .reservations-schedule-wrap {
@@ -5128,11 +5142,19 @@ body[data-theme="dark"] .res-date-toolbar {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-body[data-theme="dark"] .res-date-toolbar.res-date-toolbar--other-day {
-  border-color: #d97706;
-  background: linear-gradient(180deg, #1c1917 0%, #292524 100%);
+body[data-theme="dark"] .res-date-toolbar.res-date-toolbar--nav-back {
+  border-color: #3b82f6;
+  background: linear-gradient(180deg, #0f172a 0%, #172554 100%);
   box-shadow:
-    inset 4px 0 0 #f59e0b,
+    inset 4px 0 0 #2563eb,
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="dark"] .res-date-toolbar.res-date-toolbar--nav-forward {
+  border-color: #22c55e;
+  background: linear-gradient(180deg, #0f172a 0%, #14532d 55%, #0f172a 100%);
+  box-shadow:
+    inset 4px 0 0 #16a34a,
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
@@ -5229,11 +5251,19 @@ body[data-theme="dark"] .reservations-schedule-outer {
     0 1px 0 rgba(0, 0, 0, 0.4);
 }
 
-body[data-theme="dark"] .reservations-schedule-outer.res-schedule-outer--other-day {
-  border-color: #d97706;
+body[data-theme="dark"] .reservations-schedule-outer.res-schedule-outer--nav-back {
+  border-color: #3b82f6;
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.06),
-    0 0 0 1px rgba(245, 158, 11, 0.45),
+    0 0 0 1px rgba(37, 99, 235, 0.45),
+    0 1px 0 rgba(0, 0, 0, 0.4);
+}
+
+body[data-theme="dark"] .reservations-schedule-outer.res-schedule-outer--nav-forward {
+  border-color: #22c55e;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    0 0 0 1px rgba(22, 163, 74, 0.45),
     0 1px 0 rgba(0, 0, 0, 0.4);
 }
 

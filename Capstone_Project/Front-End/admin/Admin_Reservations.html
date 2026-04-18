@@ -303,6 +303,8 @@
       let clientSearchTimer = null;
       let scheduleDate = new Date();
       scheduleDate.setHours(12, 0, 0, 0);
+      /** 'back' | 'forward' | null — set by prev/next or mini-calendar; drives blue vs green chrome */
+      let scheduleNavDir = null;
       let calendarViewMonth = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
       let miniCalendarOpen = false;
 
@@ -474,17 +476,22 @@
         resDateFull.setAttribute('datetime', formatScheduleDateIso(scheduleDate));
 
         if (resDateToolbar) {
-          resDateToolbar.classList.toggle('res-date-toolbar--other-day', !isToday);
           resDateToolbar.classList.toggle('res-date-toolbar--today', isToday);
+          const back = scheduleNavDir === 'back';
+          const fwd = scheduleNavDir === 'forward';
+          resDateToolbar.classList.toggle('res-date-toolbar--nav-back', back);
+          resDateToolbar.classList.toggle('res-date-toolbar--nav-forward', fwd);
         }
         if (resScheduleOuter) {
           resScheduleOuter.setAttribute('data-selected-date', formatScheduleDateIso(scheduleDate));
-          resScheduleOuter.classList.toggle('res-schedule-outer--other-day', !isToday);
+          resScheduleOuter.classList.toggle('res-schedule-outer--nav-back', scheduleNavDir === 'back');
+          resScheduleOuter.classList.toggle('res-schedule-outer--nav-forward', scheduleNavDir === 'forward');
         }
         updateScheduleGridLayoutForDate();
       }
 
       function shiftScheduleDay(delta) {
+        scheduleNavDir = delta < 0 ? 'back' : delta > 0 ? 'forward' : null;
         const d = new Date(scheduleDate.getTime());
         d.setHours(12, 0, 0, 0);
         d.setDate(d.getDate() + delta);
@@ -548,6 +555,10 @@
           if (isSameCalendarDay(cellDate, scheduleDate)) cell.classList.add('is-selected');
           if (isSameCalendarDay(cellDate, today)) cell.classList.add('is-today');
           cell.addEventListener('click', function () {
+            const before = new Date(scheduleDate.getTime());
+            if (cellDate.getTime() < before.getTime()) scheduleNavDir = 'back';
+            else if (cellDate.getTime() > before.getTime()) scheduleNavDir = 'forward';
+            else scheduleNavDir = null;
             scheduleDate = cellDate;
             calendarViewMonth = new Date(scheduleDate.getFullYear(), scheduleDate.getMonth(), 1);
             updateScheduleDateDisplay();
