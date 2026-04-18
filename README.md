@@ -10,7 +10,7 @@
 - Ivan Oleh Pochynyuk - Backend / API Lead
 - Joshua Sajan - Documentation Lead
 
-**Canonical GitHub (production pulls on EC2):** [IPochynyukCoding/CIS-4375-Project](https://github.com/IPochynyukCoding/CIS-4375-Project)
+**Canonical GitHub (production pulls on EC2):** [alek0412/Production](https://github.com/alek0412/Production)
 
 
 ## Project Overview
