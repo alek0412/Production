@@ -7,51 +7,52 @@
   <link rel="stylesheet" href="../css/styles.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    /* Minimal shell: only a floating ✕ — PDF opens in iframe below (raw .pdf URL has no room for our UI). */
     body { margin: 0; padding: 0; min-height: 100vh; display: flex; flex-direction: column; }
     .openplay-header {
       position: fixed;
       top: 0;
-      left: 0;
       right: 0;
+      left: 0;
       z-index: 10;
-      background: #fff;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.1);
-      padding: 0.75rem 1.5rem;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
+      height: 0;
+      pointer-events: none;
     }
-    .openplay-header .nav-right { margin: 0; }
     .openplay-close {
-      margin-left: auto;
-      z-index: 10;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-      border: 2px solid rgba(0, 0, 0, 0.2);
-      background: #ffffff;
-      color: #374151;
-      font-size: 1.25rem;
-      font-weight: 700;
+      pointer-events: auto;
+      position: absolute;
+      top: max(0.5rem, env(safe-area-inset-top));
+      right: max(0.5rem, env(safe-area-inset-right));
+      z-index: 11;
+      width: 30px;
+      height: 30px;
+      min-width: 30px;
+      min-height: 30px;
+      border-radius: 6px;
+      border: 1px solid rgba(0, 0, 0, 0.14);
+      background: rgba(255, 255, 255, 0.92);
+      color: #4b5563;
+      font-size: 1.05rem;
+      font-weight: 600;
       line-height: 1;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       text-decoration: none;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
       transition: background 0.15s, color 0.15s, border-color 0.15s;
     }
     .openplay-close:hover {
-      background: #f3f4f6;
-      border-color: rgba(0, 0, 0, 0.3);
+      background: #fff;
+      border-color: rgba(0, 0, 0, 0.22);
       color: #111827;
     }
     .openplay-frame-wrap {
       flex: 1;
       width: 100%;
       min-height: 100vh;
-      padding-top: 56px;
+      padding-top: 0;
     }
     .openplay-frame-wrap iframe {
       width: 100%;
@@ -64,7 +65,7 @@
 </head>
 <body>
   <header class="openplay-header">
-    <a href="#" class="openplay-close" aria-label="Close and return" onclick="history.back(); return false;">&times;</a>
+    <a href="General_Dashboard.html" class="openplay-close" aria-label="Close and return to home">&times;</a>
   </header>
   <div class="openplay-frame-wrap">
     <iframe src="../images/HBC-OpenPlay.pdf" title="How to Play at the Houston Badminton Center"></iframe>
