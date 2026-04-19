@@ -1,9 +1,11 @@
 /**
  * General + Client nav auth (public-facing nav link .nav-auth-link):
  * - Default: "Log in" → /client/Client_Login.html
- * - Customer session only: "Log out" → POST /api/customer-logout → General_Dashboard
+ * - On General_* pages: never show "Log out" (home stays public-feeling). If logged in → "My account"
+ *   → /client/Client_Availability.html (member hub)
+ * - On Client_* pages + customer session: "Log out" → POST /api/customer-logout → General_Dashboard
  * - Admin session (/api/me) does NOT change this link — admins use Admin Log out separately.
- * - ?logged_in=1: just signed in as customer (nav shows Log out before cookie is readable)
+ * - ?logged_in=1 on Client pages: Log out; on General pages: My account
  * - sessionStorage hbc_customer_logged_in: set on customer sign-in; cleared on logout or API says logged out
  */
 (function () {
@@ -30,6 +32,8 @@
   if (!link) return;
 
   var path = (window.location && window.location.pathname ? window.location.pathname : '').toLowerCase();
+  /** Public marketing pages — keep header "Log out"-free when signed in; use Member area instead. */
+  var onGeneralPage = /\/general_[^/#?]+\.html/.test(path);
   var onClientPage = /\/client\/client_.*\.html$/.test(path) || /client_.*\.html$/.test(path);
   if (onClientPage) {
     var membershipTabs = document.querySelectorAll(
@@ -155,12 +159,25 @@
     });
   }
 
+  function showMemberAreaLink() {
+    link.textContent = 'My account';
+    link.href = '/client/Client_Availability.html';
+    link.setAttribute(
+      'aria-label',
+      'Open your account: reservations, bookings, and profile'
+    );
+  }
+
   var params = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   if (params && params.get('logged_in') === '1') {
     setCustomerFlag();
-    showLogOut(function () {
-      performCustomerLogout(false);
-    });
+    if (onGeneralPage) {
+      showMemberAreaLink();
+    } else {
+      showLogOut(function () {
+        performCustomerLogout(false);
+      });
+    }
     if (window.history && window.history.replaceState) {
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -184,6 +201,11 @@
     // Only customer login controls "Log out" here. An admin cookie alone must not show Log out
     // (e.g. user has Admin Layout open in another tab but never signed in as a customer).
     if (!customerLoggedIn) {
+      return;
+    }
+
+    if (onGeneralPage) {
+      showMemberAreaLink();
       return;
     }
 

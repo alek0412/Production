@@ -1,21 +1,84 @@
 /**
  * General + Client nav auth (public-facing nav link .nav-auth-link):
  * - Default: "Log in" → /client/Client_Login.html
- * - Customer session only: "Log out" → POST /api/customer-logout → General_Dashboard
+ * - On General_* pages: never show "Log out" (home stays public-feeling). If logged in → "My account"
+ *   → /client/Client_Availability.html (member hub)
+ * - On Client_* pages + customer session: "Log out" → POST /api/customer-logout → General_Dashboard
  * - Admin session (/api/me) does NOT change this link — admins use Admin Log out separately.
- * - ?logged_in=1: just signed in as customer (nav shows Log out before cookie is readable)
+ * - ?logged_in=1 on Client pages: Log out; on General pages: My account
  * - sessionStorage hbc_customer_logged_in: set on customer sign-in; cleared on logout or API says logged out
  */
 (function () {
+  var FOOTER_COPY = '\u00a9 2026 HOUSTON BADMINTON CENTER. ALL RIGHTS RESERVED.';
+  var FOOTER_COPY_CLASS = 'hbc-copyright';
+  function applyUnifiedFooterCopy() {
+    var footer = document.querySelector('footer');
+    if (!footer) return;
+
+    var container = footer.querySelector('.container') || footer;
+    var line = container.querySelector('p');
+    if (!line) {
+      line = document.createElement('p');
+      container.appendChild(line);
+    }
+
+    line.textContent = FOOTER_COPY;
+    line.classList.add(FOOTER_COPY_CLASS);
+  }
+
+  applyUnifiedFooterCopy();
+
   var link = document.querySelector('.nav-auth-link');
   if (!link) return;
 
   var path = (window.location && window.location.pathname ? window.location.pathname : '').toLowerCase();
+  /** Public marketing pages — keep header "Log out"-free when signed in; use Member area instead. */
+  var onGeneralPage = /\/general_[^/#?]+\.html/.test(path);
   var onClientPage = /\/client\/client_.*\.html$/.test(path) || /client_.*\.html$/.test(path);
   if (onClientPage) {
-    var membershipTab = document.querySelector('a.nav-tab[href="Client_Membership.html"]');
-    if (membershipTab && membershipTab.parentElement) {
-      membershipTab.parentElement.removeChild(membershipTab);
+    var membershipTabs = document.querySelectorAll(
+      '.nav-tabs a.nav-tab[href="Client_Membership.html"], .nav-tabs a.nav-tab[href="/client/Client_Membership.html"]'
+    );
+    membershipTabs.forEach(function (membershipTab) {
+      if (membershipTab && membershipTab.parentElement) {
+        membershipTab.parentElement.removeChild(membershipTab);
+      }
+    });
+
+    var aboutTabs = document.querySelectorAll(
+      '.nav-tabs a.nav-tab[href="Client_About.html"], .nav-tabs a.nav-tab[href="/client/Client_About.html"]'
+    );
+    aboutTabs.forEach(function (aboutTab) {
+      if (aboutTab && aboutTab.parentElement) {
+        aboutTab.parentElement.removeChild(aboutTab);
+      }
+    });
+
+    var navTabsContainer = document.querySelector('.nav-tabs');
+    if (navTabsContainer) {
+      var profileTab =
+        navTabsContainer.querySelector('a.nav-tab[href="Client_Profile.html"]') ||
+        navTabsContainer.querySelector('a.nav-tab[href="/client/Client_Profile.html"]');
+      if (!profileTab) {
+        profileTab = document.createElement('a');
+        profileTab.className = 'nav-tab';
+        profileTab.href = 'Client_Profile.html';
+        profileTab.textContent = 'Profile';
+      } else {
+        profileTab.href = 'Client_Profile.html';
+      }
+
+      var altServicesTab =
+        navTabsContainer.querySelector('a.nav-tab[href="Client_AlternateServices.html"]') ||
+        navTabsContainer.querySelector('a.nav-tab[href="/client/Client_AlternateServices.html"]') ||
+        navTabsContainer.querySelector('a.nav-tab[href="General_AlternateServices.html"]') ||
+        navTabsContainer.querySelector('a.nav-tab[href="/client/General_AlternateServices.html"]');
+
+      if (altServicesTab && altServicesTab.nextSibling !== profileTab) {
+        navTabsContainer.insertBefore(profileTab, altServicesTab.nextSibling);
+      } else if (!profileTab.parentElement) {
+        navTabsContainer.appendChild(profileTab);
+      }
     }
   }
 
@@ -33,6 +96,7 @@
   function clearCustomerFlag() {
     try {
       sessionStorage.removeItem(CUSTOMER_FLAG);
+      sessionStorage.removeItem('hbc_customer_first_name');
     } catch (e) {}
   }
 
@@ -95,12 +159,25 @@
     });
   }
 
+  function showMemberAreaLink() {
+    link.textContent = 'My account';
+    link.href = '/client/Client_Availability.html';
+    link.setAttribute(
+      'aria-label',
+      'Open your account: reservations, bookings, and profile'
+    );
+  }
+
   var params = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   if (params && params.get('logged_in') === '1') {
     setCustomerFlag();
-    showLogOut(function () {
-      performCustomerLogout(false);
-    });
+    if (onGeneralPage) {
+      showMemberAreaLink();
+    } else {
+      showLogOut(function () {
+        performCustomerLogout(false);
+      });
+    }
     if (window.history && window.history.replaceState) {
       window.history.replaceState({}, '', window.location.pathname);
     }
@@ -124,6 +201,11 @@
     // Only customer login controls "Log out" here. An admin cookie alone must not show Log out
     // (e.g. user has Admin Layout open in another tab but never signed in as a customer).
     if (!customerLoggedIn) {
+      return;
+    }
+
+    if (onGeneralPage) {
+      showMemberAreaLink();
       return;
     }
 
@@ -341,3 +423,58 @@
     initBackToTop();
   }
 })();
+
+(function () {
+  "use strict";
+
+  function initAltPageServicesMenu() {
+    var root = document.querySelector("[data-alt-services]");
+    if (!root) return;
+
+    var btn = root.querySelector(".alt-inpage-services__trigger");
+    var menu = root.querySelector(".alt-inpage-services__dropdown");
+    if (!btn || !menu) return;
+
+    function setOpen(open) {
+      root.classList.toggle("is-open", open);
+      btn.setAttribute("aria-expanded", open ? "true" : "false");
+      menu.setAttribute("aria-hidden", open ? "false" : "true");
+    }
+
+    setOpen(false);
+
+    btn.addEventListener("click", function (e) {
+      e.stopPropagation();
+      setOpen(!root.classList.contains("is-open"));
+    });
+
+    menu.querySelectorAll('a[href^="#"]').forEach(function (link) {
+      link.addEventListener("click", function () {
+        setOpen(false);
+      });
+    });
+
+    document.addEventListener("click", function (e) {
+      if (!root.classList.contains("is-open")) return;
+      if (root.contains(e.target)) return;
+      setOpen(false);
+    });
+
+    document.addEventListener("keydown", function (e) {
+      if (e.key !== "Escape") return;
+      if (!root.classList.contains("is-open")) return;
+      setOpen(false);
+      btn.focus();
+    });
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", initAltPageServicesMenu);
+  } else {
+    initAltPageServicesMenu();
+  }
+})();
+
+function getNavPath() {
+    return window.location.pathname;
+}
