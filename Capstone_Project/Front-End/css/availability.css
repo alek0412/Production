@@ -361,12 +361,21 @@
 
 /*
  * Desktop / laptop only: same behavior as admin Reservations — court header row stays
- * visible while scrolling the page. Horizontal scroll stays on .public-res-embed; inner
- * .reservations-schedule-outer uses overflow visible so sticky is not trapped (mirrors
- * .admin-content:has(.reservations-page) + schedule-outer on admin).
+ * visible while scrolling the page vertically.
+ *
+ * `position: sticky` does not stick to the viewport if any ancestor has overflow-x: auto
+ * (it becomes relative to that scrollport instead). Base `.public-res-embed` uses
+ * overflow-x: auto for the wide grid — that breaks sticky. Here we set overflow-x:
+ * visible on desktop so the wide shell can extend past the container and the window
+ * provides horizontal scrolling; inner schedule outer stays overflow visible like admin.
  * Do not duplicate rules into the max-width: 640px block — mobile layout is frozen there.
  */
 @media (min-width: 641px) {
+  .availability-page .public-res-embed {
+    overflow-x: visible;
+    -webkit-overflow-scrolling: auto;
+  }
+
   .availability-page .public-res-embed .reservations-schedule-outer {
     overflow: visible;
   }
