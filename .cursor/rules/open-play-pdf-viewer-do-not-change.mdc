@@ -1,0 +1,20 @@
+---
+description: Preserve the public “How to play” PDF viewer flow (dashboard → Client_OpenPlay → home).
+alwaysApply: true
+---
+
+# Open Play PDF viewer — do not change without explicit request
+
+The following behavior is **confirmed by the product owner** — do not “improve,” refactor, or replace it unless they explicitly ask.
+
+## Flow (keep as-is)
+
+1. **`Capstone_Project/Front-End/client/General_Dashboard.html`** — Step 2 **“How to play at Houston Badminton Center”** must stay a link to **`Client_OpenPlay.html`** (not a raw `.pdf` URL only). That page is what allows a custom **close (✕)** control.
+
+2. **`Capstone_Project/Front-End/client/Client_OpenPlay.html`** — Minimal shell: **`HBC-OpenPlay.pdf`** embedded (e.g. iframe from **`../images/HBC-OpenPlay.pdf`**), small **✕** top-right linking to **`General_Dashboard.html`** (home). Do not remove the ✕ or replace this with “PDF only” unless asked.
+
+3. **`Capstone_Project/Back-End/server.js`** — **`getHtmlZoneRedirect`**: **`client_openplay.html`** must remain **public** (same idea as **`client_login.html`** exception). Without it, guests are sent to **Client_Login** when opening the viewer.
+
+## Why
+
+Opening the PDF **file URL directly** uses the browser’s PDF UI — **no site-controlled ✕**. The wrapper page exists solely to provide that control for guests.

@@ -69,6 +69,20 @@
     return out;
   }
 
+  /** DB table name → readable label for the export list only (values stay real names). */
+  function tableNameToUiLabel(name) {
+    if (!name) return '';
+    return String(name)
+      .split('_')
+      .filter(function (p) {
+        return p.length;
+      })
+      .map(function (part) {
+        return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
+      })
+      .join(' ');
+  }
+
   function populateExportTableOptions(tables) {
     var sel = $('dashboard-export-tables');
     if (!sel) return;
@@ -76,7 +90,7 @@
     for (var i = 0; i < tables.length; i++) {
       var opt = document.createElement('option');
       opt.value = tables[i];
-      opt.textContent = tables[i];
+      opt.textContent = tableNameToUiLabel(tables[i]);
       sel.appendChild(opt);
     }
   }
