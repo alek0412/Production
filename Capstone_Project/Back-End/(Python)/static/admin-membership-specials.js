@@ -12,6 +12,7 @@
   var statusEl = document.getElementById('membership-specials-status');
 
   var workingItems = [];
+  var loadStateSeq = 0;
 
   function parseResponseBody(r, text) {
     var j = {};
@@ -135,13 +136,15 @@
   }
 
   function loadState() {
-    fetch('/api/membership-specials-teaser', { credentials: 'same-origin' })
+    var seq = ++loadStateSeq;
+    fetch('/api/membership-specials-teaser', { credentials: 'same-origin', cache: 'no-store' })
       .then(function (r) {
         return r.text().then(function (text) {
           return parseResponseBody(r, text);
         });
       })
       .then(function (x) {
+        if (seq !== loadStateSeq) return;
         if (x.ok && x.body && typeof x.body.teaserText === 'string') {
           if (teaserInput) teaserInput.value = x.body.teaserText;
           syncWorkingFromPayload(x.body);
@@ -152,6 +155,7 @@
         }
       })
       .catch(function () {
+        if (seq !== loadStateSeq) return;
         syncWorkingFromPayload({});
         renderItemsEditor();
       });

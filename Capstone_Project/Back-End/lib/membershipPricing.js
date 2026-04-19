@@ -55,6 +55,18 @@ function customFilePath() {
   return path.join(UPLOAD_DIR, files[0]);
 }
 
+function dataRevision() {
+  let r = 0;
+  try {
+    if (fs.existsSync(STATE_PATH)) r = Math.max(r, fs.statSync(STATE_PATH).mtimeMs);
+  } catch (e) {}
+  const p = customFilePath();
+  try {
+    if (p && fs.existsSync(p)) r = Math.max(r, fs.statSync(p).mtimeMs);
+  } catch (e) {}
+  return r;
+}
+
 function removeCustomFiles() {
   ensureDirs();
   for (const name of listCustomFiles()) {
@@ -72,6 +84,7 @@ function getKindForPath(filePath) {
 }
 
 function getPublicPayload() {
+  const rev = dataRevision();
   const p = customFilePath();
   if (!p || !fs.existsSync(p)) {
     const hidden = readHiddenFlag();
@@ -80,6 +93,7 @@ function getPublicPayload() {
       hasCustom: false,
       kind: 'image',
       visible: !hidden,
+      revision: rev,
     };
   }
   let mtimeMs = 0;
@@ -92,6 +106,7 @@ function getPublicPayload() {
     hasCustom: true,
     kind: getKindForPath(p),
     visible: true,
+    revision: rev,
   };
 }
 

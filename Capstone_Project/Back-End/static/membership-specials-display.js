@@ -4,6 +4,8 @@
 (function () {
   'use strict';
 
+  var lastKey = '';
+
   function renderItems(items) {
     var inner = document.getElementById('membership-specials-inner');
     if (!inner || !items || !items.length) return;
@@ -33,18 +35,60 @@
     });
   }
 
-  fetch('/api/membership-specials-teaser', { credentials: 'same-origin' })
-    .then(function (r) {
-      return r.json();
+  function payloadKey(d) {
+    try {
+      return JSON.stringify({
+        revision: d && typeof d.revision === 'number' ? d.revision : 0,
+        teaserText: d && typeof d.teaserText === 'string' ? d.teaserText : '',
+        items: d && Array.isArray(d.items) ? d.items : [],
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function refreshMembershipSpecials() {
+    return fetch('/api/membership-specials-teaser', {
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
-    .then(function (d) {
-      var teaser = document.getElementById('membership-specials-teaser-closed');
-      if (teaser && d && typeof d.teaserText === 'string') {
-        teaser.textContent = d.teaserText;
-      }
-      if (d && Array.isArray(d.items) && d.items.length) {
-        renderItems(d.items);
-      }
-    })
-    .catch(function () {});
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (d) {
+        var key = payloadKey(d);
+        if (key === lastKey) return;
+        lastKey = key;
+        var teaser = document.getElementById('membership-specials-teaser-closed');
+        if (teaser && d && typeof d.teaserText === 'string') {
+          teaser.textContent = d.teaserText;
+        }
+        var inner = document.getElementById('membership-specials-inner');
+        if (d && Array.isArray(d.items) && d.items.length) {
+          renderItems(d.items);
+        } else if (inner) {
+          inner.innerHTML = '';
+        }
+      })
+      .catch(function () {});
+  }
+
+  refreshMembershipSpecials();
+
+  setInterval(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    refreshMembershipSpecials();
+  }, 10000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      refreshMembershipSpecials();
+    }
+  });
+
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      refreshMembershipSpecials();
+    }
+  });
 })();

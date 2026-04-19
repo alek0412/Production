@@ -7,6 +7,23 @@
   var MIN = 1;
   var MAX = 20;
   var currentSlotCount = 6;
+  /** Object URLs for local PDF previews — revoked when gallery reloads from server. */
+  var pendingBlobUrls = {};
+
+  function revokePendingForSlot(slot) {
+    if (pendingBlobUrls[slot]) {
+      try {
+        URL.revokeObjectURL(pendingBlobUrls[slot]);
+      } catch (e) {}
+      delete pendingBlobUrls[slot];
+    }
+  }
+
+  function revokeAllPendingBlobs() {
+    Object.keys(pendingBlobUrls).forEach(function (k) {
+      revokePendingForSlot(k);
+    });
+  }
 
   function $(id) {
     return document.getElementById(id);
@@ -115,6 +132,16 @@
             im.src = slot.url;
             im.alt = slot.alt || 'Preview';
             im.className = 'admin-marketing-preview-img';
+            (function (parentPrev) {
+              im.onerror = function () {
+                if (!parentPrev) return;
+                parentPrev.innerHTML = '';
+                var ph = document.createElement('span');
+                ph.className = 'admin-marketing-preview-empty';
+                ph.textContent = 'Could not load preview';
+                parentPrev.appendChild(ph);
+              };
+            })(prev);
             prev.appendChild(im);
           }
         } else {
@@ -127,8 +154,66 @@
     }
   }
 
+  function renderLocalGalleryPreview(slot, file) {
+    var prev = $('about-gallery-preview-' + slot);
+    var statusEl = $('about-gallery-status-' + slot);
+    if (!prev || !file) return;
+    revokePendingForSlot(slot);
+    prev.innerHTML = '';
+    showStatus(statusEl, '', false);
+
+    if (file.type === 'application/pdf') {
+      pendingBlobUrls[slot] = URL.createObjectURL(file);
+      var obj = document.createElement('object');
+      obj.className = 'admin-marketing-preview-pdf';
+      obj.type = 'application/pdf';
+      obj.data = pendingBlobUrls[slot];
+      obj.setAttribute('aria-label', 'PDF preview');
+      var pf = document.createElement('p');
+      pf.className = 'admin-marketing-preview-empty';
+      pf.textContent = 'PDF';
+      obj.appendChild(pf);
+      prev.appendChild(obj);
+      return;
+    }
+
+    if (file.type.indexOf('image/') === 0) {
+      var reader = new FileReader();
+      reader.onload = function () {
+        if (!prev) return;
+        prev.innerHTML = '';
+        var im = document.createElement('img');
+        im.src = reader.result;
+        im.alt = 'Preview (not saved yet)';
+        im.className = 'admin-marketing-preview-img';
+        prev.appendChild(im);
+      };
+      reader.onerror = function () {
+        showStatus(statusEl, 'Could not read that file for preview.', true);
+      };
+      reader.readAsDataURL(file);
+      return;
+    }
+
+    var reader2 = new FileReader();
+    reader2.onload = function () {
+      if (!prev) return;
+      prev.innerHTML = '';
+      var im2 = document.createElement('img');
+      im2.src = reader2.result;
+      im2.alt = 'Preview (not saved yet)';
+      im2.className = 'admin-marketing-preview-img';
+      prev.appendChild(im2);
+    };
+    reader2.onerror = function () {
+      showStatus(statusEl, 'Could not preview that file type.', true);
+    };
+    reader2.readAsDataURL(file);
+  }
+
   function loadState() {
-    fetch('/api/about-gallery-asset', { credentials: 'include' })
+    revokeAllPendingBlobs();
+    fetch('/api/about-gallery-asset', { credentials: 'include', cache: 'no-store' })
       .then(function (r) {
         return r.text().then(function (text) {
           return parseResponseBody(r, text);
@@ -172,6 +257,17 @@
     var saveBtn = $('about-gallery-save-' + slot);
     var clearBtn = $('about-gallery-clear-' + slot);
     var statusEl = $('about-gallery-status-' + slot);
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f) {
+          loadState();
+          return;
+        }
+        renderLocalGalleryPreview(slot, f);
+      });
+    }
 
     if (saveBtn) {
       saveBtn.addEventListener('click', function () {

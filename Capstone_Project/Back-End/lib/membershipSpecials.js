@@ -99,7 +99,12 @@ function writeState(data) {
 }
 
 function getPublicPayload() {
-  return readState();
+  const state = readState();
+  let revision = 0;
+  try {
+    if (fs.existsSync(DATA_PATH)) revision = fs.statSync(DATA_PATH).mtimeMs;
+  } catch (e) {}
+  return { teaserText: state.teaserText, items: state.items, revision };
 }
 
 function setFullState(body) {

@@ -102,6 +102,14 @@
       img.alt = item.alt || 'Upcoming event';
       img.loading = 'lazy';
       img.decoding = 'async';
+      img.addEventListener('error', function () {
+        var ph = document.createElement('div');
+        ph.className = 'event-image-card__placeholder';
+        ph.setAttribute('role', 'img');
+        ph.setAttribute('aria-label', 'Event image could not be loaded');
+        ph.textContent = 'Event image unavailable';
+        if (btn.parentNode) btn.parentNode.replaceChild(ph, btn);
+      });
       btn.appendChild(img);
       (function (url, alt) {
         btn.addEventListener('click', function () {
@@ -329,12 +337,68 @@
     buildCarousel(images);
   }
 
-  fetch('/api/upcoming-events', { credentials: 'same-origin' })
-    .then(function (r) {
-      return r.json();
+  var lastPayloadKey = '';
+
+  /** Detect any change from Layout/admin (slot count, URLs, alts); avoid stale browser cache of GET. */
+  function payloadKey(data) {
+    try {
+      if (!data) return '';
+      var images = data.images || [];
+      var sc =
+        typeof data.slotCount === 'number'
+          ? data.slotCount
+          : images.length;
+      return JSON.stringify({
+        revision: typeof data.revision === 'number' ? data.revision : 0,
+        slotCount: sc,
+        images: images,
+        minSlots: data.minSlots,
+        maxSlots: data.maxSlots,
+      });
+    } catch (e) {
+      return '';
+    }
+  }
+
+  function refreshUpcomingEvents() {
+    return fetch('/api/upcoming-events', {
+      credentials: 'same-origin',
+      cache: 'no-store',
     })
-    .then(render)
-    .catch(function () {
-      render({ images: [{ url: null, alt: '' }] });
-    });
+      .then(function (r) {
+        return r.json();
+      })
+      .then(function (data) {
+        var key = payloadKey(data);
+        if (key !== lastPayloadKey) {
+          lastPayloadKey = key;
+          render(data);
+        }
+      })
+      .catch(function () {
+        if (!lastPayloadKey) {
+          lastPayloadKey = '__fallback__';
+          render({ images: [{ url: null, alt: '' }] });
+        }
+      });
+  }
+
+  refreshUpcomingEvents();
+
+  setInterval(function () {
+    if (document.visibilityState && document.visibilityState !== 'visible') return;
+    refreshUpcomingEvents();
+  }, 10000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      refreshUpcomingEvents();
+    }
+  });
+
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      refreshUpcomingEvents();
+    }
+  });
 })();

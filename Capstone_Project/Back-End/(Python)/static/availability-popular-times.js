@@ -99,6 +99,7 @@
 
   function payloadKey(d) {
     return JSON.stringify({
+      revision: d && typeof d.revision === 'number' ? d.revision : 0,
       url: d && d.url ? d.url : '',
       kind: d && d.kind ? d.kind : '',
       visible: !!(d && d.visible !== false),
@@ -106,7 +107,10 @@
   }
 
   function refreshPopularTimes() {
-    return fetch('/api/popular-times-pdf', { credentials: 'same-origin' })
+    return fetch('/api/popular-times-pdf', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
       .then(function (r) {
         return r.json();
       })
@@ -114,20 +118,20 @@
         var key = payloadKey(d);
         if (key === lastAssetKey) return;
         lastAssetKey = key;
-      if (!d) {
-        container.innerHTML = '';
-        setBlockShown(false);
-        return;
-      }
-      if (d.visible === false) {
-        container.innerHTML = '';
-        setBlockShown(false);
-        return;
-      }
-      setBlockShown(true);
-      var url = d && d.url ? d.url : fallbackUrl;
-      var kind = d && d.kind === 'image' ? 'image' : 'pdf';
-      loadAsset(url, kind);
+        if (!d) {
+          container.innerHTML = '';
+          setBlockShown(false);
+          return;
+        }
+        if (d.visible === false) {
+          container.innerHTML = '';
+          setBlockShown(false);
+          return;
+        }
+        setBlockShown(true);
+        var url = d && d.url ? d.url : fallbackUrl;
+        var kind = d && d.kind === 'image' ? 'image' : 'pdf';
+        loadAsset(url, kind);
       })
       .catch(function () {
         if (!lastAssetKey) {
@@ -143,5 +147,17 @@
   setInterval(function () {
     if (document.visibilityState && document.visibilityState !== 'visible') return;
     refreshPopularTimes();
-  }, 15000);
+  }, 10000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      refreshPopularTimes();
+    }
+  });
+
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      refreshPopularTimes();
+    }
+  });
 })();

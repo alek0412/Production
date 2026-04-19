@@ -161,6 +161,7 @@
 
   function payloadKey(data) {
     return JSON.stringify({
+      revision: data && typeof data.revision === 'number' ? data.revision : 0,
       url: data && data.url ? data.url : '',
       kind: data && data.kind ? data.kind : '',
       visible: !!(data && data.visible !== false),
@@ -168,7 +169,10 @@
   }
 
   function refreshMembershipPricing() {
-    return fetch('/api/membership-pricing', { credentials: 'same-origin' })
+    return fetch('/api/membership-pricing', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
       .then(function (r) {
         return r.json();
       })
@@ -176,26 +180,26 @@
         var key = payloadKey(data);
         if (key === lastPricingKey) return;
         lastPricingKey = key;
-      if (!data) {
-        host.innerHTML = '';
-        setFigureShown(false);
-        return;
-      }
-      if (data.visible === false) {
-        host.innerHTML = '';
-        setFigureShown(false);
-        return;
-      }
-      if (typeof data.url !== 'string') {
-        setFigureShown(false);
-        return;
-      }
-      setFigureShown(true);
-      if (data.kind === 'pdf') {
-        mountThumb('pdf', data.url);
-      } else {
-        mountThumb('image', data.url);
-      }
+        if (!data) {
+          host.innerHTML = '';
+          setFigureShown(false);
+          return;
+        }
+        if (data.visible === false) {
+          host.innerHTML = '';
+          setFigureShown(false);
+          return;
+        }
+        if (typeof data.url !== 'string') {
+          setFigureShown(false);
+          return;
+        }
+        setFigureShown(true);
+        if (data.kind === 'pdf') {
+          mountThumb('pdf', data.url);
+        } else {
+          mountThumb('image', data.url);
+        }
       })
       .catch(function () {
         if (!lastPricingKey) {
@@ -211,5 +215,17 @@
   setInterval(function () {
     if (document.visibilityState && document.visibilityState !== 'visible') return;
     refreshMembershipPricing();
-  }, 15000);
+  }, 10000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      refreshMembershipPricing();
+    }
+  });
+
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      refreshMembershipPricing();
+    }
+  });
 })();

@@ -12,6 +12,7 @@
   var saveDefaultLabel = btnSave ? btnSave.textContent : 'Save image';
   var lastServerPayload = null;
   var pendingObjectUrl = null;
+  var loadStateSeq = 0;
 
   function parseResponseBody(r, text) {
     var j = {};
@@ -101,13 +102,15 @@
   }
 
   function loadState() {
-    fetch('/api/popular-times-pdf', { credentials: 'include' })
+    var seq = ++loadStateSeq;
+    fetch('/api/popular-times-pdf', { credentials: 'include', cache: 'no-store' })
       .then(function (r) {
         return r.text().then(function (text) {
           return parseResponseBody(r, text);
         });
       })
       .then(function (x) {
+        if (seq !== loadStateSeq) return;
         if (x.ok && x.body && x.body.url != null) {
           lastServerPayload = x.body;
           if (!(fileInput && fileInput.files && fileInput.files[0])) {

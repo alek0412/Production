@@ -1,6 +1,10 @@
 /**
  * Persisted upcoming-event promo images (home dashboard).
  * Images live under Front-End/uploads/upcoming-events/; metadata in data/upcoming-events.json
+ *
+ * Production note: With multiple Node instances or ephemeral disks, PUT /api/admin and GET /api
+ * must see the same files and JSON (EFS, S3 + shared DB, or a single instance). Otherwise images
+ * can flash then 404 when requests hit different servers.
  */
 const fs = require('fs');
 const path = require('path');
@@ -95,6 +99,29 @@ function deleteFileIfManaged(urlPath) {
   } catch (_) {}
 }
 
+/** Append cache-bust query so browsers/CDNs fetch the file after replace; no-op if file missing. */
+function publicImageUrl(storedUrl) {
+  if (!storedUrl || typeof storedUrl !== 'string') return null;
+  const fp = safeFilePathForUrl(storedUrl);
+  if (!fp) return storedUrl;
+  try {
+    const st = fs.statSync(fp);
+    if (!st.isFile()) return storedUrl;
+    const sep = storedUrl.indexOf('?') >= 0 ? '&' : '?';
+    return storedUrl + sep + 'v=' + String(st.mtimeMs);
+  } catch (_) {
+    return storedUrl;
+  }
+}
+
+function dataFileRevision() {
+  try {
+    const st = fs.statSync(DATA_PATH);
+    if (st.isFile()) return st.mtimeMs;
+  } catch (_) {}
+  return 0;
+}
+
 function slotBoundsError(len) {
   return { ok: false, error: `Invalid slot. Use index 0–${len - 1}.` };
 }
@@ -174,8 +201,9 @@ function clearSlot(slotIndex) {
 function getPublicPayload() {
   const state = readState();
   return {
+    revision: dataFileRevision(),
     images: state.images.map((entry) => ({
-      url: entry.url || null,
+      url: entry.url ? publicImageUrl(entry.url) : null,
       alt: entry.alt || '',
     })),
     slotCount: state.images.length,

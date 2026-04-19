@@ -39,6 +39,14 @@
     return { ok: r.ok, body: j };
   }
 
+  function isPdfLikeFile(file) {
+    if (!file) return false;
+    var t = (file.type || '').toLowerCase();
+    if (t === 'application/pdf') return true;
+    var n = (file.name || '').toLowerCase();
+    return n.length > 4 && n.slice(-4) === '.pdf';
+  }
+
   function fileToDataUrl(file) {
     return new Promise(function (resolve, reject) {
       var reader = new FileReader();
@@ -59,7 +67,7 @@
     root.innerHTML = '';
     for (var i = 0; i < count; i++) {
       var slotEl = document.createElement('div');
-      slotEl.className = 'admin-marketing-slot';
+      slotEl.className = 'admin-marketing-slot admin-marketing-slot--image-only';
       slotEl.setAttribute('data-slot', String(i));
       slotEl.innerHTML =
         '<h2 class="admin-marketing-slot-title">Event image ' +
@@ -104,6 +112,16 @@
           im.src = slot.url;
           im.alt = slot.alt || 'Preview';
           im.className = 'admin-marketing-preview-img';
+          (function (parentPrev) {
+            im.onerror = function () {
+              if (!parentPrev) return;
+              parentPrev.innerHTML = '';
+              var ph = document.createElement('span');
+              ph.className = 'admin-marketing-preview-empty';
+              ph.textContent = 'Could not load preview';
+              parentPrev.appendChild(ph);
+            };
+          })(prev);
           prev.appendChild(im);
         } else {
           var ph = document.createElement('span');
@@ -115,9 +133,37 @@
     }
   }
 
+  function renderLocalPreview(slotIndex, file) {
+    var prev = $('marketing-preview-' + slotIndex);
+    var statusEl = $('marketing-status-' + slotIndex);
+    if (!prev || !file) return;
+    if (isPdfLikeFile(file)) {
+      showStatus(
+        statusEl,
+        'Images only here—use Availability, Membership pricing, or Gallery for a PDF.',
+        true
+      );
+      return;
+    }
+    var reader = new FileReader();
+    reader.onload = function () {
+      if (!prev) return;
+      prev.innerHTML = '';
+      var im = document.createElement('img');
+      im.src = reader.result;
+      im.alt = 'Preview (not saved yet)';
+      im.className = 'admin-marketing-preview-img';
+      prev.appendChild(im);
+    };
+    reader.onerror = function () {
+      showStatus(statusEl, 'Could not read that file for preview.', true);
+    };
+    reader.readAsDataURL(file);
+  }
+
   function loadState() {
     var seq = ++loadStateSeq;
-    fetch('/api/upcoming-events', { credentials: 'include' })
+    fetch('/api/upcoming-events', { credentials: 'include', cache: 'no-store' })
       .then(function (r) {
         return r.json();
       })
@@ -165,6 +211,14 @@
           showStatus(statusEl, 'Choose an image file first.', true);
           return;
         }
+        if (isPdfLikeFile(f)) {
+          showStatus(
+            statusEl,
+            'Upcoming events use images only (JPG, PNG, WebP, HEIC, AVIF, etc.). For a PDF, use Availability, Membership pricing, or Gallery.',
+            true
+          );
+          return;
+        }
         fileToDataUrl(f)
           .then(function (dataUrl) {
             return fetch('/api/admin/upcoming-events', {
@@ -195,6 +249,18 @@
           .catch(function () {
             showStatus(statusEl, 'Network error.', true);
           });
+      });
+    }
+
+    if (fileInput) {
+      fileInput.addEventListener('change', function () {
+        var f = fileInput.files && fileInput.files[0];
+        if (!f) {
+          loadState();
+          return;
+        }
+        showStatus(statusEl, '', false);
+        renderLocalPreview(slot, f);
       });
     }
 

@@ -64,6 +64,15 @@
     input.dispatchEvent(ev);
   }
 
+  /** Home upcoming-event slots are image-only; PDFs belong in Availability / pricing / gallery. */
+  function isPdfLikeFile(file) {
+    if (!file) return false;
+    var t = (file.type || '').toLowerCase();
+    if (t === 'application/pdf') return true;
+    var n = (file.name || '').toLowerCase();
+    return n.length > 4 && n.slice(-4) === '.pdf';
+  }
+
   /** Both dragenter and dragover must be cancelled so the element is a valid drop target. */
   document.addEventListener(
     'dragenter',
@@ -113,6 +122,16 @@
       slot.classList.remove('admin-marketing-slot--dragover');
       var files = e.dataTransfer && e.dataTransfer.files;
       if (!files || !files.length) return;
+      if (slot.classList && slot.classList.contains('admin-marketing-slot--image-only')) {
+        var first = files[0];
+        if (isPdfLikeFile(first)) {
+          showDropHint(
+            slot,
+            'Upcoming events use images only (JPG, PNG, WebP, HEIC, AVIF, etc.). For a PDF, use Availability, Membership pricing, or Gallery.'
+          );
+          return;
+        }
+      }
       if (!setInputFiles(input, files)) {
         showDropHint(slot, 'Drag/drop not supported here. Click the file picker, then Save.');
         return;

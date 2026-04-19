@@ -35,6 +35,21 @@ function safeFilePathForUrl(urlPath) {
   return resolved;
 }
 
+/** Cache-bust managed uploads so browsers pick up replacements after Layout saves. */
+function publicImageUrl(storedUrl) {
+  if (!storedUrl || typeof storedUrl !== 'string') return null;
+  const fp = safeFilePathForUrl(storedUrl);
+  let bust = 0;
+  if (fp) {
+    try {
+      bust = fs.statSync(fp).mtimeMs;
+    } catch (e) {}
+  }
+  if (!bust) return storedUrl;
+  const base = storedUrl.split('?')[0];
+  return `${base}?v=${String(Math.round(bust))}`;
+}
+
 function emptySlot() {
   return { url: null, alt: '', kind: null };
 }
@@ -194,13 +209,18 @@ function clearAllSlots() {
 
 function getPublicPayload() {
   const state = readState();
+  let revision = 0;
+  try {
+    if (fs.existsSync(DATA_PATH)) revision = fs.statSync(DATA_PATH).mtimeMs;
+  } catch (e) {}
   const images = state.images.map((entry) => {
-    const url = entry.url || null;
+    const rawUrl = entry.url || null;
+    const url = rawUrl ? publicImageUrl(rawUrl) : null;
     const kind =
-      url && (entry.kind === 'pdf' || entry.kind === 'image')
+      rawUrl && (entry.kind === 'pdf' || entry.kind === 'image')
         ? entry.kind
-        : url
-          ? /\.pdf(\?|$)/i.test(url)
+        : rawUrl
+          ? /\.pdf(\?|$)/i.test(rawUrl)
             ? 'pdf'
             : 'image'
           : null;
@@ -212,6 +232,7 @@ function getPublicPayload() {
   });
   const hasCustom = images.some((e) => e.url);
   return {
+    revision,
     images,
     slotCount: state.images.length,
     minSlots: MIN_SLOTS,

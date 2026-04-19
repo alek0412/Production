@@ -338,6 +338,8 @@
   }
 
   function runGalleryWithImages(items) {
+    disconnectCarouselResizeObserver();
+    root.innerHTML = '';
     var pages = chunkImages(items, PER_PAGE);
     root.className = 'event-cards event-cards--carousel about-gallery-carousel-mount';
     root.setAttribute('data-count', String(pages.length));
@@ -364,14 +366,26 @@
 
   function payloadKey(d) {
     try {
-      return JSON.stringify((d && d.images) || []);
+      if (!d) return '';
+      var images = d.images || [];
+      var sc =
+        typeof d.slotCount === 'number' ? d.slotCount : images.length;
+      return JSON.stringify({
+        revision: typeof d.revision === 'number' ? d.revision : 0,
+        slotCount: sc,
+        hasCustom: !!d.hasCustom,
+        images: images,
+      });
     } catch (e) {
       return '';
     }
   }
 
   function refreshGallery() {
-    return fetch('/api/about-gallery-asset', { credentials: 'same-origin' })
+    return fetch('/api/about-gallery-asset', {
+      credentials: 'same-origin',
+      cache: 'no-store',
+    })
       .then(function (r) {
         return r.json();
       })
@@ -379,26 +393,26 @@
         var key = payloadKey(d);
         if (key === lastGalleryKey) return;
         lastGalleryKey = key;
-      var custom = [];
-      if (d && d.images && d.images.length) {
-        for (var i = 0; i < d.images.length; i++) {
-          var row = d.images[i];
-          if (row && row.url) {
-            var rk =
-              row.kind === 'pdf' || row.kind === 'image'
-                ? row.kind
-                : /\.pdf(\?|$)/i.test(row.url)
-                  ? 'pdf'
-                  : 'image';
-            custom.push({ src: row.url, alt: row.alt || '', kind: rk });
+        var custom = [];
+        if (d && d.images && d.images.length) {
+          for (var i = 0; i < d.images.length; i++) {
+            var row = d.images[i];
+            if (row && row.url) {
+              var rk =
+                row.kind === 'pdf' || row.kind === 'image'
+                  ? row.kind
+                  : /\.pdf(\?|$)/i.test(row.url)
+                    ? 'pdf'
+                    : 'image';
+              custom.push({ src: row.url, alt: row.alt || '', kind: rk });
+            }
           }
         }
-      }
-      if (custom.length > 0) {
-        runGalleryWithImages(custom);
-        return;
-      }
-      showGalleryEmptyState();
+        if (custom.length > 0) {
+          runGalleryWithImages(custom);
+          return;
+        }
+        showGalleryEmptyState();
       })
       .catch(function () {
         if (!lastGalleryKey) {
@@ -413,5 +427,18 @@
   setInterval(function () {
     if (document.visibilityState && document.visibilityState !== 'visible') return;
     refreshGallery();
-  }, 15000);
+  }, 10000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      refreshGallery();
+    }
+  });
+
+  window.addEventListener('pageshow', function (e) {
+    if (e.persisted) {
+      refreshGallery();
+    }
+  });
 })();
+
