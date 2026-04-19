@@ -85,8 +85,9 @@ function hasCustomerSessionCookie(req) {
 }
 
 /**
- * Isolate site zones: General_* HTML is public; Client_* (except Client_Login) needs customer
- * session; /admin/*.html needs admin session. Prevents direct URL access without login.
+ * Isolate site zones: General_* HTML is public; Client_* (except Client_Login and
+ * Client_OpenPlay — public “how to play” PDF viewer) needs customer session;
+ * /admin/*.html needs admin session. Prevents direct URL access without login.
  */
 function getHtmlZoneRedirect(urlPath, req) {
   const lower = urlPath.toLowerCase();
@@ -105,6 +106,7 @@ function getHtmlZoneRedirect(urlPath, req) {
   const baseLower = base.toLowerCase();
   if (baseLower.startsWith('general_')) return null;
   if (baseLower === 'client_login.html') return null;
+  if (baseLower === 'client_openplay.html') return null;
   if (baseLower.startsWith('client_')) {
     if (!hasCustomerSessionCookie(req)) {
       return '/client/Client_Login.html?next=' + encodeURIComponent(norm);
