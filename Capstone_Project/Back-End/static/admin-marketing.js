@@ -7,6 +7,8 @@
   var MIN = 1;
   var MAX = 6;
   var currentSlotCount = 3;
+  /** Ignore stale GET /api/upcoming-events responses (e.g. initial load finishing after setCount). */
+  var loadStateSeq = 0;
 
   function $(id) {
     return document.getElementById(id);
@@ -114,11 +116,13 @@
   }
 
   function loadState() {
+    var seq = ++loadStateSeq;
     fetch('/api/upcoming-events', { credentials: 'include' })
       .then(function (r) {
         return r.json();
       })
       .then(function (data) {
+        if (seq !== loadStateSeq) return;
         if (data && typeof data.minSlots === 'number') MIN = data.minSlots;
         if (data && typeof data.maxSlots === 'number') MAX = data.maxSlots;
         var images = (data && data.images) || [];
@@ -127,8 +131,8 @@
         if (n > MAX) n = MAX;
         currentSlotCount = n;
         var sel = $('marketing-slot-count');
-        if (sel && sel.value !== String(n)) sel.value = String(n);
         if (sel && sel.options.length === 0) populateSelect();
+        if (sel && sel.value !== String(n)) sel.value = String(n);
         renderSlots(n);
         fillPreviews(images);
       })
