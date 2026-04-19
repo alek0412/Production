@@ -67,6 +67,52 @@ function hasManagerSessionCookie(req) {
   return /(?:^|;\s*)admin_manager_session=loggedin(?:\s|;|$)/.test(c);
 }
 
+/** Same as /api/customer-me fast path: Node `customer_session` + `hbc_customer_email`. */
+function hasCustomerSessionCookie(req) {
+  const c = req.headers.cookie || '';
+  let sessionValue = '';
+  try {
+    const m = c.match(/customer_session=([^;]*)/);
+    sessionValue = m ? decodeURIComponent(m[1].trim()) : '';
+  } catch (_) {}
+  if (sessionValue !== CUSTOMER_SESSION_VALUE) return false;
+  try {
+    const em = c.match(/hbc_customer_email=([^;]*)/);
+    return !!(em && decodeURIComponent(em[1].trim()));
+  } catch (_) {
+    return false;
+  }
+}
+
+/**
+ * Isolate site zones: General_* HTML is public; Client_* (except Client_Login) needs customer
+ * session; /admin/*.html needs admin session. Prevents direct URL access without login.
+ */
+function getHtmlZoneRedirect(urlPath, req) {
+  const lower = urlPath.toLowerCase();
+  if (!lower.endsWith('.html')) return null;
+  const norm = String(urlPath).replace(/\\/g, '/');
+  if (!norm.startsWith('/admin/') && !norm.startsWith('/client/')) return null;
+
+  if (norm.startsWith('/admin/')) {
+    if (!hasAdminSessionCookie(req)) {
+      return '/client/Client_Login.html?tab=admin';
+    }
+    return null;
+  }
+
+  const base = path.basename(norm);
+  const baseLower = base.toLowerCase();
+  if (baseLower.startsWith('general_')) return null;
+  if (baseLower === 'client_login.html') return null;
+  if (baseLower.startsWith('client_')) {
+    if (!hasCustomerSessionCookie(req)) {
+      return '/client/Client_Login.html?next=' + encodeURIComponent(norm);
+    }
+  }
+  return null;
+}
+
 const MIME = {
   '.html': 'text/html',
   '.css': 'text/css',
@@ -196,6 +242,15 @@ const server = http.createServer(async (req, res) => {
     res.writeHead(403, { 'Content-Type': 'text/plain' });
     res.end('Forbidden');
     return;
+  }
+
+  if (req.method === 'GET' || req.method === 'HEAD') {
+    const zoneRedirect = getHtmlZoneRedirect(urlPath, req);
+    if (zoneRedirect) {
+      res.writeHead(302, { Location: zoneRedirect });
+      res.end();
+      return;
+    }
   }
 
   fs.stat(filePath, (err, stat) => {

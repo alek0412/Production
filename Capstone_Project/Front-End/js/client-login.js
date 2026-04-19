@@ -24,9 +24,20 @@
       tabCustomer.addEventListener('click', showCustomer);
       tabAdmin.addEventListener('click', showAdmin);
 
-      var tabParam = typeof URLSearchParams !== 'undefined'
-        ? new URLSearchParams(window.location.search).get('tab')
-        : null;
+      var urlParams = typeof URLSearchParams !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+      var nextTarget = null;
+      if (urlParams) {
+        try {
+          var rawNext = urlParams.get('next');
+          if (rawNext) {
+            var decNext = decodeURIComponent(rawNext);
+            if (/^\/client\/Client_[^/]+\.html$/i.test(decNext)) {
+              nextTarget = decNext;
+            }
+          }
+        } catch (e) {}
+      }
+      var tabParam = urlParams ? urlParams.get('tab') : null;
       if (tabParam === 'admin') {
         showAdmin();
       } else {
@@ -66,7 +77,11 @@
                   sessionStorage.setItem('hbc_customer_first_name', String(data.firstName).trim());
                 }
               } catch (e) {}
-              window.location.href = '/client/Client_Availability.html?logged_in=1';
+              var dest = '/client/Client_Availability.html?logged_in=1';
+              if (nextTarget) {
+                dest = nextTarget.indexOf('?') >= 0 ? nextTarget + '&logged_in=1' : nextTarget + '?logged_in=1';
+              }
+              window.location.href = dest;
             } else {
               customerError.textContent = data.message || 'Invalid email or password';
               customerError.hidden = false;
