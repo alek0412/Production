@@ -1,0 +1,20 @@
+---
+description: Do not change mobile (phone) court/reservations table styling or behavior without explicit user request.
+alwaysApply: true
+---
+
+# Court schedule table — mobile is frozen
+
+The embedded **court / reservations schedule** on **Availability** pages (the admin-style grid inside `.public-res-embed` on phones) is **intentionally tuned and must not be “improved” or refactored** unless the user explicitly asks.
+
+## Do not change (without explicit request)
+
+- **`Capstone_Project/Front-End/css/availability.css`**
+  - The **`@media (max-width: 640px)`** block whose comment is *“Mobile-only (narrow phones): Popular times + court schedule…”* — specifically all rules under **`.availability-page .public-res-embed`** (sticky headers/corner, `.reservations-schedule-outer`, `.reservations-schedule-wrap`, `.time-slot`, etc.).
+  - Avoid edits to **base** `.availability-page .public-res-embed` / `.reservations-shell` / schedule grid rules in that file if the goal is only desktop/tablet; those affect how the grid behaves on small viewports too.
+
+- **`Capstone_Project/Front-End/js/availability-court-schedule.js`** (and synced copies under `Back-End/static/`, `Back-End/(Python)/static/`) — no changes that alter **DOM structure, scroll containers, or click/touch behavior** on narrow screens for the embedded schedule.
+
+## If a bug must be fixed on mobile
+
+Make the **smallest possible** fix; do not restyle or redesign the table. Prefer asking the user before broad CSS/JS changes.

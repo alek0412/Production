@@ -359,6 +359,27 @@
   padding: 0;
 }
 
+/*
+ * Desktop / laptop only: same behavior as admin Reservations — court header row stays
+ * visible while scrolling the page. Horizontal scroll stays on .public-res-embed; inner
+ * .reservations-schedule-outer uses overflow visible so sticky is not trapped (mirrors
+ * .admin-content:has(.reservations-page) + schedule-outer on admin).
+ * Do not duplicate rules into the max-width: 640px block — mobile layout is frozen there.
+ */
+@media (min-width: 641px) {
+  .availability-page .public-res-embed .reservations-schedule-outer {
+    overflow: visible;
+  }
+
+  .availability-page .public-res-embed .res-schedule-corner,
+  .availability-page .public-res-embed .res-schedule-headers {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    align-self: start;
+  }
+}
+
 /* Modal — request reservation (client logged-in) */
 .pub-res-modal-overlay {
   position: fixed;
