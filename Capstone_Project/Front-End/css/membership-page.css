@@ -723,7 +723,8 @@ section.features {
   transition: max-height 0.4s ease;
 }
 .specials-box.is-open .specials-content {
-  max-height: 280px;
+  max-height: min(70vh, 720px);
+  overflow: auto;
 }
 .specials-box .specials-inner {
   padding: 0 1.25rem 1.25rem;
