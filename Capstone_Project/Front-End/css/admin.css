@@ -1202,12 +1202,25 @@ body[data-theme="light"] .layout-studio .admin-title-wrap--left.admin-title-wrap
   text-align: center;
   margin: 0 auto 1.15rem;
   max-width: 42rem;
+  padding: 0.8rem 0.95rem;
+  border-radius: 12px;
+  border: 1px solid rgba(148, 163, 184, 0.22);
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.55), rgba(255, 255, 255, 0.28));
+  box-shadow: 0 8px 26px -20px rgba(15, 23, 42, 0.45);
 }
 
 .layout-studio-section-head--compact {
   text-align: left;
   margin-left: 0;
   margin-bottom: 0.85rem;
+}
+
+body[data-theme="dark"] .layout-studio-section-head {
+  border-color: rgba(148, 163, 184, 0.26);
+  background: linear-gradient(180deg, rgba(30, 41, 59, 0.78), rgba(15, 23, 42, 0.62));
+  box-shadow:
+    0 1px 0 rgba(255, 255, 255, 0.06) inset,
+    0 14px 34px -22px rgba(2, 6, 23, 0.75);
 }
 
 .layout-studio-kicker {
