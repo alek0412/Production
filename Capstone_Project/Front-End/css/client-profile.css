@@ -344,6 +344,12 @@
 }
 
 @media (max-width: 760px) {
+  .client-profile-page .logo {
+    justify-self: start;
+    justify-content: flex-start;
+    padding-left: 0.35rem;
+  }
+
   .profile-hero__inner {
     flex-direction: column;
     align-items: flex-start;
@@ -351,6 +357,16 @@
 
   .profile-hero__identity {
     align-items: flex-start;
+  }
+
+  .profile-avatar {
+    /* Prevent flex shrinking from turning the avatar into an oval on phones. */
+    flex: 0 0 72px;
+    width: 72px;
+    height: 72px;
+    min-width: 72px;
+    min-height: 72px;
+    aspect-ratio: 1 / 1;
   }
 
   .profile-card {

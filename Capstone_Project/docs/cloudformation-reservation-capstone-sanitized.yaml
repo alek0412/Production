@@ -1,9 +1,6 @@
 # -----------------------------------------------------------------------------
-# Sponsor handout — bundled with the repo so the sponsor deploys THIS stack.
-#
-# Canonical source (edit first, then copy here): Outline for Sponsor/
-#   cloudformation-reservation-capstone-sanitized.yaml
-# (Folder is next to CIS-4375-Project; keep this file identical when the Outline file changes.)
+# SPONSOR HANDOFF — edit THIS file first (canonical). Copy to repo handout after changes:
+#   CIS-4375-Project/Capstone_Project/docs/cloudformation-reservation-capstone-sanitized.yaml
 #
 # Deploy: AWS Console → CloudFormation → Create stack → Upload template file
 #   OR: aws cloudformation create-stack --stack-name ... --template-body file://...
@@ -15,7 +12,10 @@
 # Web tier: internet-facing Application Load Balancer (HTTP:80) -> two EC2 instances
 # (Amazon Linux 2023, one per public subnet/AZ). App traffic on port 3000 from ALB only.
 # Entry URL is the ALB DNS name (no Elastic IP on instances). SSH still from AllowedIngressCidr.
-# EC2 UserData only installs httpd + MariaDB client for a minimal host; ALB health checks
+# Amazon EFS (NFS) is created with mount targets in both public subnets so BOTH web instances
+# share the same uploads + JSON app data (see /mnt/hbc-app/capstone/...). UserData mounts EFS
+# at boot; symlink or bind your repo paths to those dirs after cloning (runbook).
+# EC2 UserData installs httpd + MariaDB client + nfs-utils and mounts EFS; ALB health checks
 # stay unhealthy until you deploy the Node app (port 3000) on BOTH instances — see project runbook.
 # RDS: Multi-AZ MySQL (standby in second AZ). Higher cost than single-AZ lab stack.
 # Updating an EXISTING stack from the older single-EIP template may replace resources — use Change Sets.
@@ -24,8 +24,9 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: >
   Reservation capstone - VPC, public + private subnets, Application Load Balancer to two
-  web EC2 instances (Amazon Linux 2023, one per AZ), Multi-AZ MySQL RDS in private subnets,
-  S3 gateway endpoint on private route tables. All resources are created by this stack.
+  web EC2 instances (Amazon Linux 2023, one per AZ), Amazon EFS shared storage (NFS) for both
+  web instances, Multi-AZ MySQL RDS in private subnets, S3 gateway endpoint on private route
+  tables. All resources are created by this stack.
 
 Metadata:
   AWS::CloudFormation::Interface:
@@ -404,6 +405,52 @@ Resources:
         - Key: Name
           Value: !Sub "${ProjectPrefix}-db-subnets"
 
+  # --- Shared file storage (NFS) for multi-instance uploads + Back-End/data JSON ---
+  EfsSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub "${ProjectPrefix}-efs-sg"
+      GroupDescription: EFS — NFS (2049) from web tier only
+      VpcId: !Ref VPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 2049
+          ToPort: 2049
+          SourceSecurityGroupId: !Ref WebSecurityGroup
+      SecurityGroupEgress:
+        - IpProtocol: "-1"
+          FromPort: -1
+          ToPort: -1
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${ProjectPrefix}-efs-sg"
+
+  AppEfsFileSystem:
+    Type: AWS::EFS::FileSystem
+    Properties:
+      Encrypted: true
+      PerformanceMode: generalPurpose
+      FileSystemTags:
+        - Key: Name
+          Value: !Sub "${ProjectPrefix}-app-efs"
+
+  AppEfsMountTarget1:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref AppEfsFileSystem
+      SubnetId: !Ref PublicSubnet1
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+
+  AppEfsMountTarget2:
+    Type: AWS::EFS::MountTarget
+    Properties:
+      FileSystemId: !Ref AppEfsFileSystem
+      SubnetId: !Ref PublicSubnet2
+      SecurityGroups:
+        - !Ref EfsSecurityGroup
+
   Database:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Snapshot
@@ -434,6 +481,9 @@ Resources:
 
   WebServer:
     Type: AWS::EC2::Instance
+    DependsOn:
+      - AppEfsMountTarget1
+      - AppEfsMountTarget2
     Properties:
       ImageId: !Ref LatestAmiId
       InstanceType: !Ref WebInstanceType
@@ -445,18 +495,45 @@ Resources:
         HttpTokens: required
         HttpEndpoint: enabled
       UserData:
-        Fn::Base64: |
-          #!/bin/bash
-          dnf update -y
-          dnf install -y httpd mariadb105
-          systemctl start httpd
-          systemctl enable httpd
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              set -euo pipefail
+              dnf update -y
+              dnf install -y httpd mariadb105 nfs-utils
+              systemctl start httpd
+              systemctl enable httpd
+              EFS_DNS="${EfsId}.efs.${AWS::Region}.amazonaws.com"
+              mkdir -p /mnt/hbc-app
+              for attempt in $$(seq 1 36); do
+                if mountpoint -q /mnt/hbc-app 2>/dev/null; then
+                  break
+                fi
+                if mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport "$$EFS_DNS:/" /mnt/hbc-app; then
+                  break
+                fi
+                sleep 10
+              done
+              if ! mountpoint -q /mnt/hbc-app; then
+                echo "EFS mount failed after retries — check EFS security group and mount targets." >&2
+                exit 1
+              fi
+              mkdir -p /mnt/hbc-app/capstone/Front-End/uploads /mnt/hbc-app/capstone/Back-End/data
+              chown -R ec2-user:ec2-user /mnt/hbc-app/capstone
+              if ! grep -qF "$$EFS_DNS:/ /mnt/hbc-app" /etc/fstab; then
+                echo "$$EFS_DNS:/ /mnt/hbc-app nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,_netdev,noresvport 0 0" >> /etc/fstab
+              fi
+            - EfsId: !Ref AppEfsFileSystem
       Tags:
         - Key: Name
           Value: Reservation-Web-Server-A
 
   WebServer2:
     Type: AWS::EC2::Instance
+    DependsOn:
+      - AppEfsMountTarget1
+      - AppEfsMountTarget2
     Properties:
       ImageId: !Ref LatestAmiId
       InstanceType: !Ref WebInstanceType
@@ -468,12 +545,36 @@ Resources:
         HttpTokens: required
         HttpEndpoint: enabled
       UserData:
-        Fn::Base64: |
-          #!/bin/bash
-          dnf update -y
-          dnf install -y httpd mariadb105
-          systemctl start httpd
-          systemctl enable httpd
+        Fn::Base64:
+          Fn::Sub:
+            - |
+              #!/bin/bash
+              set -euo pipefail
+              dnf update -y
+              dnf install -y httpd mariadb105 nfs-utils
+              systemctl start httpd
+              systemctl enable httpd
+              EFS_DNS="${EfsId}.efs.${AWS::Region}.amazonaws.com"
+              mkdir -p /mnt/hbc-app
+              for attempt in $$(seq 1 36); do
+                if mountpoint -q /mnt/hbc-app 2>/dev/null; then
+                  break
+                fi
+                if mount -t nfs4 -o nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,noresvport "$$EFS_DNS:/" /mnt/hbc-app; then
+                  break
+                fi
+                sleep 10
+              done
+              if ! mountpoint -q /mnt/hbc-app; then
+                echo "EFS mount failed after retries — check EFS security group and mount targets." >&2
+                exit 1
+              fi
+              mkdir -p /mnt/hbc-app/capstone/Front-End/uploads /mnt/hbc-app/capstone/Back-End/data
+              chown -R ec2-user:ec2-user /mnt/hbc-app/capstone
+              if ! grep -qF "$$EFS_DNS:/ /mnt/hbc-app" /etc/fstab; then
+                echo "$$EFS_DNS:/ /mnt/hbc-app nfs4 nfsvers=4.1,rsize=1048576,wsize=1048576,hard,timeo=600,retrans=2,_netdev,noresvport 0 0" >> /etc/fstab
+              fi
+            - EfsId: !Ref AppEfsFileSystem
       Tags:
         - Key: Name
           Value: Reservation-Web-Server-B
@@ -569,3 +670,14 @@ Outputs:
   SshHint:
     Description: SSH example — use WebServerAPublicIp or WebServerBPublicIp from Outputs or EC2 console
     Value: "ssh -i your-key.pem ec2-user@<WebServerAPublicIp or WebServerBPublicIp>"
+
+  EfsFileSystemId:
+    Description: Amazon EFS file system ID (shared by both web instances at /mnt/hbc-app)
+    Value: !Ref AppEfsFileSystem
+
+  SharedAppDataHint:
+    Description: >
+      After cloning the app, point uploads and JSON data at EFS — e.g. symlink
+      ~/CIS-4375-Project/Capstone_Project/Front-End/uploads -> /mnt/hbc-app/capstone/Front-End/uploads
+      and Capstone_Project/Back-End/data -> /mnt/hbc-app/capstone/Back-End/data (same on both instances).
+    Value: "/mnt/hbc-app/capstone"
