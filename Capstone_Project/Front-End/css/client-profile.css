@@ -344,12 +344,6 @@
 }
 
 @media (max-width: 760px) {
-  .client-profile-page .logo {
-    justify-self: start;
-    justify-content: flex-start;
-    padding-left: 0.35rem;
-  }
-
   .profile-hero__inner {
     flex-direction: column;
     align-items: flex-start;
