@@ -184,28 +184,42 @@
     }
   }
 
+  var reservationsPulseDelayTimer = null;
+
+  function setReservationsPendingPulse(link, enabled) {
+    if (!link) return;
+    if (!enabled) {
+      if (reservationsPulseDelayTimer) {
+        clearTimeout(reservationsPulseDelayTimer);
+        reservationsPulseDelayTimer = null;
+      }
+      link.classList.remove('admin-nav-link--pending-pulse');
+      return;
+    }
+    if (link.classList.contains('admin-nav-link--pending-pulse') || reservationsPulseDelayTimer) {
+      return;
+    }
+    reservationsPulseDelayTimer = setTimeout(function () {
+      reservationsPulseDelayTimer = null;
+      link.classList.add('admin-nav-link--pending-pulse');
+    }, 5000);
+  }
+
   function updateReservationsNavBadge(count) {
     var link = document.querySelector('a.admin-nav-link[href="Admin_Reservations.html"]');
     if (!link) return;
     var badge = link.querySelector('.admin-nav-pending-badge');
-    if (!badge) {
-      badge = document.createElement('span');
-      badge.className = 'admin-nav-pending-badge';
-      badge.setAttribute('aria-hidden', 'true');
-      link.appendChild(badge);
-    }
+    if (badge && badge.parentNode) badge.parentNode.removeChild(badge);
     var n = typeof count === 'number' && count > 0 ? count : 0;
     if (n > 0) {
-      badge.textContent = n > 99 ? '99+' : String(n);
-      badge.hidden = false;
       link.setAttribute(
         'title',
         n + ' pending court booking request' + (n === 1 ? '' : 's')
       );
+      setReservationsPendingPulse(link, true);
     } else {
-      badge.textContent = '';
-      badge.hidden = true;
       link.removeAttribute('title');
+      setReservationsPendingPulse(link, false);
     }
   }
 

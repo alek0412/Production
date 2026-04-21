@@ -120,9 +120,7 @@
     if (emailEl) emailEl.textContent = p.email || '—';
     if (phoneEl) phoneEl.textContent = p.phone || '—';
     if (avatar) avatar.textContent = initials(p);
-    if (badge && p.membershipStatus != null && String(p.membershipStatus).trim() !== '') {
-      badge.textContent = String(p.membershipStatus).trim();
-    }
+    if (badge) badge.hidden = true;
     var ec = p.emergencyContact;
     var ecNameEl = document.getElementById('profile-emergency-name');
     var ecEmailEl = document.getElementById('profile-emergency-email');

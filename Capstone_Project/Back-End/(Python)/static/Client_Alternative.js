@@ -1,6 +1,6 @@
 /**
  * Alternate Services — coach & Minami reach-out; Contact page — info@ mailto.
- * Send: opens default email app (mailto:). If that does not work, user can use Gmail or Outlook in the browser.
+ * Send: opens default email app (mailto:). If that does not work, user can use common webmail providers in the browser.
  */
 (function () {
   'use strict';
@@ -19,6 +19,17 @@
   function outlookComposeUrl(to, subject, body) {
     return (
       'https://outlook.live.com/mail/0/deeplink/compose?to=' +
+      encodeURIComponent(to) +
+      '&subject=' +
+      encodeURIComponent(subject) +
+      '&body=' +
+      encodeURIComponent(body)
+    );
+  }
+
+  function yahooComposeUrl(to, subject, body) {
+    return (
+      'https://compose.mail.yahoo.com/?to=' +
       encodeURIComponent(to) +
       '&subject=' +
       encodeURIComponent(subject) +
@@ -56,7 +67,14 @@
     aO.rel = 'noopener noreferrer';
     aO.textContent = 'Outlook.com';
     el.appendChild(aO);
-    el.appendChild(document.createTextNode('.'));
+    el.appendChild(document.createTextNode(' · '));
+    var aY = document.createElement('a');
+    aY.href = yahooComposeUrl(to, subject, body);
+    aY.target = '_blank';
+    aY.rel = 'noopener noreferrer';
+    aY.textContent = 'Yahoo Mail';
+    el.appendChild(aY);
+    el.appendChild(document.createTextNode(' · or any other webmail provider.'));
   }
 
   var select = document.getElementById('coach-select');

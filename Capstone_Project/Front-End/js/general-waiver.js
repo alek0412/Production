@@ -129,7 +129,7 @@
           try {
             sessionStorage.setItem("hbc_customer_logged_in", "1");
           } catch (err) {}
-          window.location.href = "/client/Client_Profile.html?waiver_ok=1";
+          window.location.href = "/client/Client_Availability.html?waiver_ok=1";
           return;
         }
         var m =
