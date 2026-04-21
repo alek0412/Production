@@ -185,6 +185,24 @@
   }
 
   var reservationsPulseDelayTimer = null;
+  var RES_PENDING_SINCE_KEY = 'hbc_res_pending_since_ms';
+
+  function readPendingSinceMs() {
+    try {
+      var raw = sessionStorage.getItem(RES_PENDING_SINCE_KEY);
+      var n = raw != null ? parseInt(raw, 10) : NaN;
+      return Number.isFinite(n) ? n : 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function writePendingSinceMs(ms) {
+    try {
+      if (ms > 0) sessionStorage.setItem(RES_PENDING_SINCE_KEY, String(ms));
+      else sessionStorage.removeItem(RES_PENDING_SINCE_KEY);
+    } catch (e) {}
+  }
 
   function setReservationsPendingPulse(link, enabled) {
     if (!link) return;
@@ -193,16 +211,33 @@
         clearTimeout(reservationsPulseDelayTimer);
         reservationsPulseDelayTimer = null;
       }
+      writePendingSinceMs(0);
       link.classList.remove('admin-nav-link--pending-pulse');
+      return;
+    }
+    var now = Date.now();
+    var pendingSince = readPendingSinceMs();
+    if (pendingSince <= 0 || pendingSince > now) {
+      pendingSince = now;
+      writePendingSinceMs(pendingSince);
+    }
+    var elapsed = now - pendingSince;
+    if (elapsed >= 5000) {
+      if (reservationsPulseDelayTimer) {
+        clearTimeout(reservationsPulseDelayTimer);
+        reservationsPulseDelayTimer = null;
+      }
+      link.classList.add('admin-nav-link--pending-pulse');
       return;
     }
     if (link.classList.contains('admin-nav-link--pending-pulse') || reservationsPulseDelayTimer) {
       return;
     }
+    var waitMs = Math.max(0, 5000 - elapsed);
     reservationsPulseDelayTimer = setTimeout(function () {
       reservationsPulseDelayTimer = null;
       link.classList.add('admin-nav-link--pending-pulse');
-    }, 5000);
+    }, waitMs);
   }
 
   function updateReservationsNavBadge(count) {
