@@ -6,7 +6,7 @@
 - Ken C. Vuong - Project Manager
 - Nam Vu - Architect / Assistant Project Manager
 - Dylan John Hayward -  Architect / Business Analyst
-- Alek A. Espinosa -  Frontend / Lead Developer
+- Alek A. Espinosa -  Lead Cloud & Full-Stack AI Architect / Lead Developer
 - Ivan Oleh Pochynyuk - Backend / API Lead
 - Joshua Sajan - Documentation Lead
 
@@ -28,7 +28,7 @@ This project uses a scalable, three-tier architecture:
 * **Frontend:** HTML5, CSS3, JavaScript (Tab-based dynamic interface).
 * **Middle Tier / Web Server:** Node.js (`server.js`) handles serving static files, session routing, and API proxying.
 * **Backend API:** Python (Flask) utilizing Waitress (`flask_server.py`) for core business logic and routing.
-* **Database & Cloud:** Designed for AWS DynamoDB (Production) and MySQL (Development), secured within an AWS VPC and routed via AWS Route 53.
+* **Database & Cloud:** Amazon RDS for MySQL (Multi-AZ) with encrypted Amazon EFS shared storage, deployed by AWS CloudFormation into a VPC with public and private subnets across 2 Availability Zones, behind an Application Load Balancer serving two Amazon Linux 2023 EC2 web servers. Template: `Capstone_Project/docs/cloudformation-reservation-capstone-sanitized.yaml`.
 
 
 ## Installation & Setup - See `Capstone_Project/docs/CONSOLIDATED_DOCUMENTATION.md` for details how to config AWS services.
